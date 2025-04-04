@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url:
+    username:
+    password:
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      table-prefix: QRTZ_
+      driver-class: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/job_store
+      user: root
+      password: 123456
+      scheduler:
+        instance-name: QuartzScheduler
+
+vortexa:
+  script-node:
+    bot-group: helei-macbook
+    bot-instance-locations: /Users/helei/develop/ideaworkspace/BotFramework/vortexa-script-bot/src/main/java/cn/com/vortexa/script_bot
+#    bot-instance-locations: "reactive:"
+  script-agent:
+    registryCenterUrl: ws://localhost:18848
+    nio-thread-count: 1
+    service-offline-ttl: 60
+    service-instance:
+      host: localhost
+      port: 20001
+      group: default
+      serviceId: script-node
+      instanceId: script-node-macbook
