@@ -1,6 +1,7 @@
 package cn.com.vortexa.script_bot.daily.haha_wallet;
 
 import cn.com.vortexa.browser_control.*;
+import cn.com.vortexa.browser_control.dto.SeleniumParams;
 import cn.com.vortexa.browser_control.dto.SeleniumProxy;
 import cn.com.vortexa.browser_control.execute.ExecuteGroup;
 import cn.com.vortexa.browser_control.execute.ExecuteItem;
@@ -103,8 +104,6 @@ public class HahaWalletSelenium extends OptSeleniumInstance {
 
     @Override
     public void init() {
-
-
         super.addExecuteFun(ExecuteGroup.builder()
                         .name("初始化")
                         .enterCondition((webDriver, params) -> {
@@ -380,19 +379,13 @@ public class HahaWalletSelenium extends OptSeleniumInstance {
     }
 
     @NotNull
-    private static JSONObject getParams(AccountContext accountContext) {
-        JSONObject params = new JSONObject();
-
-        JSONArray extensions = new JSONArray();
-        extensions.add(HAHA_WALLET_EXTENSION_CRX_PATH);
-        params.put(SeleniumInstance.EXTENSIONS_PATH_LIST, extensions);
-
-        JSONArray options = new JSONArray();
-        options.add("user-agent=" + accountContext.getBrowserEnv().getUserAgent());
-
-        params.put(TARGET_WEB_SITE, "chrome-extension://andhndehpcjpmneneealacgnmealilal/popup.html");
-        params.put(SeleniumInstance.OPTION_LIST, options);
-        params.put(SeleniumInstance.DRIVER_PATH, CHROME_DRIVER_PATH);
-        return params;
+    private static SeleniumParams getParams(AccountContext accountContext) {
+        return SeleniumParams
+                .builder()
+                .driverPath(CHROME_DRIVER_PATH)
+                .targetWebSite("chrome-extension://andhndehpcjpmneneealacgnmealilal/popup.html")
+                .extensionPaths(List.of(HAHA_WALLET_EXTENSION_CRX_PATH))
+                .chromeOptions(List.of("user-agent=" + accountContext.getBrowserEnv().getUserAgent()))
+                .build();
     }
 }

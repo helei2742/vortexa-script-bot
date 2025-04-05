@@ -3,6 +3,7 @@ package cn.com.vortexa.script_bot.daily.klok;
 import cn.com.vortexa.common.constants.BotJobType;
 import cn.com.vortexa.common.constants.HttpMethod;
 import cn.com.vortexa.common.dto.Result;
+import cn.com.vortexa.common.entity.AccountBaseInfo;
 import cn.com.vortexa.common.entity.AccountContext;
 import cn.com.vortexa.common.exception.BotInitException;
 import cn.com.vortexa.common.exception.BotStartException;
@@ -12,22 +13,26 @@ import cn.com.vortexa.script_node.bot.AutoLaunchBot;
 import cn.com.vortexa.common.dto.config.AutoBotConfig;
 import cn.com.vortexa.script_node.service.BotApi;
 import cn.com.vortexa.web3.EthWalletUtil;
+import cn.com.vortexa.web3.dto.WalletInfo;
 import cn.hutool.core.lang.Pair;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.web3j.crypto.Keys;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @BotApplication(
@@ -36,17 +41,22 @@ import java.util.concurrent.ExecutionException;
 )
 public class KlokBot extends AutoLaunchBot<KlokBot> {
 
+    public static final String PEER_ACCOUNT_REFER_KEY = "peer_account_refer";
     public static final String PRIMARY_KEY = "primary_key";
     public static final String ETH_ADDRESS = "eth_address";
     public static final String SESSION_TOKEN = "session_token";
     public static final String DAILY_TIMES = "daily_times";
     public static final String DAILY_LIMIT = "daily_limit";
+    public static final String REFER_CODE = "refer_code";
 
     private KlokApi klokApi;
+
+    private String inviteCode;
 
     @Override
     protected void botInitialized(AutoBotConfig botConfig, BotApi botApi) {
         klokApi = new KlokApi(this);
+        inviteCode = (String) botConfig.getCustomConfig().get(REFER_CODE);
     }
 
     @Override
@@ -56,13 +66,13 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
     @BotMethod(jobType = BotJobType.REGISTER, concurrentCount = 5)
     public Result register(AccountContext exampleAC, List<AccountContext> sameBAIDList, String inviteCode) {
-        return klokApi.register(exampleAC, inviteCode);
+        return klokApi.registerOrLogin(exampleAC, inviteCode);
     }
 
     @BotMethod(jobType = BotJobType.LOGIN, concurrentCount = 5)
     public Result login(AccountContext accountContext) {
         if (accountContext.getAccountBaseInfoId() != 3) return Result.fail("");
-        return klokApi.login(accountContext);
+        return klokApi.registerOrLogin(accountContext, inviteCode);
     }
 
     @BotMethod(jobType = BotJobType.QUERY_REWARD, intervalInSecond = 24 * 60 * 60)
@@ -70,9 +80,20 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         return klokApi.rewordQuery(exampleAC);
     }
 
-    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 6 * 60 * 60, concurrentCount = 10)
+    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 6 * 60 * 60, concurrentCount = 50)
     public void dailyTask(AccountContext accountContext) throws ExecutionException, InterruptedException {
-        klokApi.dailyTask(accountContext);
+        klokApi.dailyTask(accountContext, inviteCode);
+    }
+
+    @BotMethod(jobType = BotJobType.ONCE_TASK, concurrentCount = 50)
+    public void autoRefer(AccountContext accountContext) throws ExecutionException, InterruptedException {
+        AutoBotConfig autoBotConfig = getAutoBotConfig();
+        Integer count = (Integer) autoBotConfig.getCustomConfig().get(PEER_ACCOUNT_REFER_KEY);
+        try {
+            klokApi.autoRefer(accountContext, count == null ? 20 : count);
+        } catch (IOException e) {
+            logger.error(accountContext.getSimpleInfo() + " auto refer error", e);
+        }
     }
 
     public static void main(String[] args) throws BotStartException, BotInitException {
@@ -106,7 +127,7 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
             }
         }
 
-        public Result register(AccountContext accountContext, String inviteCode) {
+        public Result registerOrLogin(AccountContext accountContext, String inviteCode) {
             try {
                 Pair<String, String> signature = generateSignature(accountContext);
                 klokBot.logger.debug(accountContext.getSimpleInfo() + " signature success");
@@ -119,28 +140,6 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                 return Result.ok(token);
             } catch (Exception e) {
                 String errorMsg = accountContext.getSimpleInfo() + " register error, " +
-                        (e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
-                klokBot.logger.error(
-                        errorMsg
-                );
-                return Result.fail(errorMsg);
-            }
-        }
-
-        public Result login(AccountContext accountContext) {
-            try {
-                Pair<String, String> signature = generateSignature(accountContext);
-                klokBot.logger.debug(accountContext.getSimpleInfo() + " signature success");
-
-                CompletableFuture<String> tokenFuture = verify(accountContext, signature.getKey(), signature.getValue(),
-                        null);
-                String token = tokenFuture.get();
-                klokBot.logger.info(accountContext.getSimpleInfo() + " login success, token: " + token);
-                accountContext.setParam(SESSION_TOKEN, token);
-
-                return Result.ok(token);
-            } catch (Exception e) {
-                String errorMsg = accountContext.getSimpleInfo() + " login success, token: " +
                         (e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
                 klokBot.logger.error(
                         errorMsg
@@ -181,10 +180,10 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
             });
         }
 
-        public void dailyTask(AccountContext accountContext) throws ExecutionException, InterruptedException {
+        public void dailyTask(AccountContext accountContext, String inviteCode) throws ExecutionException, InterruptedException {
             String simpleInfo = accountContext.getSimpleInfo();
             int count = (int) accountContext.getParams().getOrDefault(DAILY_TIMES, 10);
-            Result result = login(accountContext);
+            Result result = registerOrLogin(accountContext, inviteCode);
 
             klokBot.logger.debug(simpleInfo + " start daily task, remaining: " + count);
 
@@ -196,19 +195,27 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
                 int errorCount = 0;
 
-                JSONObject limitCheck = accountRequestLimitCheck(accountContext, headers);
-                Integer remaining = limitCheck.getInteger("remaining");
-                count = Math.min(count, remaining);
+                JSONObject limitCheck = null;
+                for (int i = 0; i < 10; i++) {
+                    limitCheck = accountRequestLimitCheck(accountContext, headers);
+                    if (limitCheck != null) {
+                        count = limitCheck.getInteger("remaining");
+                        break;
+                    }
+                    klokBot.logger.debug(simpleInfo + " rate limit[%d/%d], sleep 30s...".formatted(i + 1, count));
+                    TimeUnit.SECONDS.sleep(60);
+                }
 
-                if (count <= 0) {
-                    klokBot.logger.warn(simpleInfo + " Daily limit reached " + count);
+                if (limitCheck == null || count <= 0) {
+                    klokBot.logger.warn(simpleInfo + " Daily limited " + count);
                     return;
                 }
 
                 while (count > 0) {
                     JSONObject body = new JSONObject();
                     body.put("id", UUID.randomUUID().toString());
-                    body.put("messages", buildChatMessage());
+                    JSONArray message = buildChatMessage();
+                    body.put("messages", message);
                     body.put("model", "llama-3.3-70b-instruct");
                     body.put("created_at", currentISOTime());
                     body.put("language", "english");
@@ -222,15 +229,22 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                                 headers,
                                 null,
                                 body,
-                                () -> simpleInfo + " send chat request - " + finalCount
+                                () -> simpleInfo + " send chat request - " + finalCount + " " + message
                         ).get();
-                        klokBot.logger.info("%s daily chat %d finish...".formatted(simpleInfo, count));
+                        klokBot.logger.info("%s daily chat %d finish..question:[%s].%s".formatted(
+                                simpleInfo, count, body.get("messages"), chatResult.substring(0, Math.min(20, chatResult.length())))
+                        );
                     } catch (Exception e) {
                         klokBot.logger.error("daily chat %d error, %s".formatted(count,
                                 e.getCause() == null ? e.getCause().getMessage() : e.getMessage()));
                         errorCount++;
                     }
+
                     count--;
+
+                    int i = random.nextInt(10);
+                    klokBot.logger.debug(simpleInfo + " sleep..." + i);
+                    TimeUnit.SECONDS.sleep(i);
                 }
 
                 if (errorCount > 0) {
@@ -288,6 +302,107 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                 klokBot.logger.error(errorMsg);
                 return Result.fail(errorMsg);
             }
+        }
+
+        public void autoRefer(AccountContext accountContext, Integer count) throws IOException, ExecutionException, InterruptedException {
+            String simpleInfo = accountContext.getSimpleInfo();
+
+            klokBot.logger.info(simpleInfo + " start auto refer");
+
+            Path path = Paths.get(klokBot.getAppConfigDir() + File.separator + "refer"
+                    + File.separator + accountContext.getId() + "_" + simpleInfo + ".txt");
+            if (!Files.exists(path.getParent())) {
+                Files.createDirectories(path.getParent());
+            }
+
+            List<Pair<WalletInfo, Boolean>> list = new ArrayList<>();
+
+            if (Files.exists(path)) {
+                // 1 读钱包
+                try (BufferedReader reader = new BufferedReader(new FileReader(path.toFile()))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while (((line = reader.readLine()) != null)) {
+                        sb.append(line);
+                    }
+                    list = new ArrayList<>(JSONObject.parseObject(sb.toString(), new TypeReference<>() {}));
+                }
+            }
+
+            int newCount = count - list.size();
+
+            if (newCount > 0) {
+                // 2 生成钱包
+                try {
+                    for (int i = 0; i < newCount; i++) {
+                        WalletInfo walletInfo = EthWalletUtil.generateEthWallet();
+                        list.add(new Pair<>(walletInfo, false));
+                    }
+                    try (BufferedWriter writer = new BufferedWriter(new FileWriter(path.toFile()))) {
+                        writer.write(JSONObject.toJSONString(list));
+                        writer.flush();
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            List<Pair<WalletInfo, Boolean>> noReferWallet = list.stream().filter(pair -> !pair.getValue()).toList();
+
+            if (noReferWallet.isEmpty()) {
+                klokBot.logger.warn(simpleInfo + " refer limit");
+                return;
+            }
+
+            String referCode = accountContext.getParam(REFER_CODE);
+            if (StrUtil.isBlank(referCode)) {
+                registerOrLogin(accountContext, null);
+                String token = accountContext.getParam(SESSION_TOKEN);
+                if (token == null) {
+                    klokBot.logger.error(simpleInfo + " token is null");
+                    return;
+                }
+
+                referCode = getAccountReferCode(accountContext);
+                accountContext.setParam(REFER_CODE, referCode);
+            }
+
+            // 3 邀请
+            String finalReferCode = referCode;
+            noReferWallet.forEach(pair -> {
+                WalletInfo walletInfo = pair.getKey();
+                try {
+                    AccountContext referAc = new AccountContext();
+                    referAc.setParam(PRIMARY_KEY, walletInfo.getPrivateKey());
+                    referAc.setParam(ETH_ADDRESS, Keys.toChecksumAddress(walletInfo.getAddress()));
+                    referAc.setAccountBaseInfo(AccountBaseInfo.builder()
+                            .name(accountContext.getName() + "-refer-" + walletInfo.getAddress())
+                            .build()
+                    );
+                    referAc.setProxy(accountContext.getProxy());
+                    referAc.setBrowserEnv(accountContext.getBrowserEnv());
+                    dailyTask(referAc, finalReferCode);
+                } catch (Exception e) {
+                    klokBot.logger.error(simpleInfo + " refer [%s] error".formatted(walletInfo.getAddress()), e);
+                }
+            });
+        }
+
+
+        private String getAccountReferCode(AccountContext accountContext) throws ExecutionException, InterruptedException {
+            Map<String, String> headers = generateACHeader(accountContext);
+            headers.put("x-session-token", accountContext.getParam(SESSION_TOKEN));
+            String responseStr = klokBot.syncRequest(
+                    accountContext.getProxy(),
+                    BASE_API + "/v1/referral/stats",
+                    HttpMethod.GET,
+                    headers,
+                    null,
+                    null,
+                    () -> accountContext.getSimpleInfo() + " get refer code request"
+            ).get();
+            JSONObject jb = JSONObject.parseObject(responseStr);
+            return jb.getString("referral_code");
         }
 
         private static @NotNull Map<String, String> generateACHeader(AccountContext accountContext) {
