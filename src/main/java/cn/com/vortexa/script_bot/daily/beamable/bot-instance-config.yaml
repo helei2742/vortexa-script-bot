@@ -1,0 +1,10 @@
+vortexa:
+  bot-instance:
+    botKey: 'beamable_test'
+    className: 'cn.com.vortexa.script_bot.daily.beamable.BeamableBot'
+    classFileName: 'BeamableBot.java'
+    accountConfig:
+      configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/beamable.xlsx"
+    customConfig:
+      bit_browser_api_url: 'http://192.168.1.2:54888'
+      chrome_driver_url: 'http://192.168.1.2:54999'
