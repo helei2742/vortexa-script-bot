@@ -20,7 +20,7 @@ vortexa:
     bot-group: helei-macbook
     bot-instance-locations: /Users/helei/develop/ideaworkspace/BotFramework/vortexa-script-bot/src/main/java/cn/com/vortexa/script_bot
     auto-launch-bot-keys:
-      - magic_newton_test
+      - monadscore_test
   #    bot-instance-locations: "reactive:"
   script-agent:
     registryCenterUrl: ws://localhost:18848
