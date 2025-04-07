@@ -22,7 +22,7 @@ import java.util.List;
  * @since 2025-04-06
  */
 @BotApplication(
-        name = "magic_newton",
+        name = "beamable_bot",
         configParams = {BeamableBot.BIT_BROWSER_API_URL, BeamableBot.CHROME_DRIVER_URL},
         accountParams = BeamableBot.FINGER_BROWSER_SEQ
 )

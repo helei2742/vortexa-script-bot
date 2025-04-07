@@ -85,12 +85,12 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         klokApi.dailyTask(accountContext, inviteCode);
     }
 
-    @BotMethod(jobType = BotJobType.ONCE_TASK, concurrentCount = 50)
-    public void autoRefer(AccountContext accountContext) throws ExecutionException, InterruptedException {
+    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 40 * 60, concurrentCount = 50)
+    public void autoRefer_v2(AccountContext accountContext) throws ExecutionException, InterruptedException {
         AutoBotConfig autoBotConfig = getAutoBotConfig();
         Integer count = (Integer) autoBotConfig.getCustomConfig().get(PEER_ACCOUNT_REFER_KEY);
         try {
-            klokApi.autoRefer(accountContext, count == null ? 20 : count);
+            klokApi.autoRefer(accountContext, 1);
         } catch (IOException e) {
             logger.error(accountContext.getSimpleInfo() + " auto refer error", e);
         }
@@ -182,10 +182,10 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
         public void dailyTask(AccountContext accountContext, String inviteCode) throws ExecutionException, InterruptedException {
             String simpleInfo = accountContext.getSimpleInfo();
-            int count = (int) accountContext.getParams().getOrDefault(DAILY_TIMES, 10);
+
             Result result = registerOrLogin(accountContext, inviteCode);
 
-            klokBot.logger.debug(simpleInfo + " start daily task, remaining: " + count);
+            klokBot.logger.debug(simpleInfo + " start daily task" );
 
             if (result.getSuccess()) {
                 String token = accountContext.getParam(SESSION_TOKEN);
@@ -193,25 +193,25 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                 Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
                 headers.put("x-session-token", token);
 
-                int errorCount = 0;
-
-                JSONObject limitCheck = null;
-                for (int i = 0; i < 10; i++) {
-                    limitCheck = accountRequestLimitCheck(accountContext, headers);
-                    if (limitCheck != null) {
-                        count = limitCheck.getInteger("remaining");
-                        break;
+                while (true) {
+                    int count = 0;
+                    JSONObject limitCheck = null;
+                    for (int i = 0; i < 10; i++) {
+                        limitCheck = accountRequestLimitCheck(accountContext, headers);
+                        if (limitCheck != null) {
+                            count = limitCheck.getInteger("remaining");
+                            break;
+                        }
+                        klokBot.logger.debug(simpleInfo + " rate limit[%d/%d], sleep 30s...".formatted(i + 1, count));
+                        TimeUnit.SECONDS.sleep(60);
                     }
-                    klokBot.logger.debug(simpleInfo + " rate limit[%d/%d], sleep 30s...".formatted(i + 1, count));
-                    TimeUnit.SECONDS.sleep(60);
-                }
 
-                if (limitCheck == null || count <= 0) {
-                    klokBot.logger.warn(simpleInfo + " Daily limited " + count);
-                    return;
-                }
+                    if (limitCheck == null || count <= 0) {
+                        klokBot.logger.warn(simpleInfo + " Daily limited " + count);
+                        return;
+                    }
 
-                while (count > 0) {
+
                     JSONObject body = new JSONObject();
                     body.put("id", UUID.randomUUID().toString());
                     JSONArray message = buildChatMessage();
@@ -237,18 +237,11 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                     } catch (Exception e) {
                         klokBot.logger.error("daily chat %d error, %s".formatted(count,
                                 e.getCause() == null ? e.getCause().getMessage() : e.getMessage()));
-                        errorCount++;
                     }
-
-                    count--;
 
                     int i = random.nextInt(10);
                     klokBot.logger.debug(simpleInfo + " sleep..." + i);
                     TimeUnit.SECONDS.sleep(i);
-                }
-
-                if (errorCount > 0) {
-                    accountContext.setParam(DAILY_TIMES, errorCount);
                 }
             }
         }
@@ -317,18 +310,18 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
             List<Pair<WalletInfo, Boolean>> list = new ArrayList<>();
 
-            if (Files.exists(path)) {
-                // 1 读钱包
-                try (BufferedReader reader = new BufferedReader(new FileReader(path.toFile()))) {
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while (((line = reader.readLine()) != null)) {
-                        sb.append(line);
-                    }
-                    list = new ArrayList<>(JSONObject.parseObject(sb.toString(), new TypeReference<>() {}));
-                }
-            }
-
+//            if (Files.exists(path)) {
+//                // 1 读钱包
+//                try (BufferedReader reader = new BufferedReader(new FileReader(path.toFile()))) {
+//                    StringBuilder sb = new StringBuilder();
+//                    String line;
+//                    while (((line = reader.readLine()) != null)) {
+//                        sb.append(line);
+//                    }
+//                    list = new ArrayList<>(JSONObject.parseObject(sb.toString(), new TypeReference<>() {}));
+//                }
+//            }
+//
             int newCount = count - list.size();
 
             if (newCount > 0) {

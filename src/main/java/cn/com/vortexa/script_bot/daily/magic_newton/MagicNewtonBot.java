@@ -53,8 +53,6 @@ public class MagicNewtonBot extends AutoLaunchBot<MagicNewtonBot> {
 
     @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60 * 12, concurrentCount = WINDOW_SIZE)
     public void dailyTask(AccountContext accountContext) throws IOException {
-        if (accountContext.getId() <= 30) return;
-
         Integer fingerSeq = Integer.parseInt(accountContext.getParam(FINGER_BROWSER_SEQ));
         runningBrowserWindow.add(fingerSeq);
         String simpleInfo = accountContext.getSimpleInfo();

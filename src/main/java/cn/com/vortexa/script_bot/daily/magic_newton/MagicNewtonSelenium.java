@@ -58,20 +58,20 @@ public class MagicNewtonSelenium extends OptSeleniumInstance {
 
     @Override
     public void init() {
-//        addExecuteFun(ExecuteGroup
-//                .builder().name("摇筛子").enterCondition((webDriver, params) -> {
-//                    try {
-//                        TimeUnit.SECONDS.sleep(5);
-//                    } catch (InterruptedException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                    return true;
-//                })
-//                .executeItems(List.of(
-//                        ExecuteItem.builder().name("进入摇骰子界面").executeLogic(this::enterDice).build()
-//                ))
-//                .build()
-//        ).
+        addExecuteFun(ExecuteGroup
+                .builder().name("摇筛子").enterCondition((webDriver, params) -> {
+                    try {
+                        TimeUnit.SECONDS.sleep(5);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return true;
+                })
+                .executeItems(List.of(
+                        ExecuteItem.builder().name("进入摇骰子界面").executeLogic(this::enterDice).build()
+                ))
+                .build()
+        ).
         addExecuteFun(ExecuteGroup
                 .builder().name("扫雷").enterCondition((webDriver, params) -> {
                     webDriver.get(getParams().getTargetWebSite());
@@ -99,8 +99,9 @@ public class MagicNewtonSelenium extends OptSeleniumInstance {
         xPathClick("//p[text()='Roll now']");
 
         try {
-            xPathClick("//p[text()='Let's roll']", 10);
-            xPathClick("//p[text()='Throw Dice']");
+            xPathClick("//button[./div/p[text()=\"Let's roll\"]]", 10);
+            xPathClick("//p[text()='Throw Dice']", 0);
+            xPathClick("//p[text()='Return Home']", 10);
         } catch (Exception e) {
             log.warn(getInstanceId() + " cannot dice");
         }
@@ -223,6 +224,12 @@ public class MagicNewtonSelenium extends OptSeleniumInstance {
                     log.warn(getInstanceId() + " [%s] scan count[%s] next epoch......".formatted(
                             playCount, scanCount
                     ));
+                    if (scanCount > 50) {
+                        log.error(getInstanceId() + " [%s] scan count[%s] out limit 50......".formatted(
+                                playCount, scanCount
+                        ));
+                        break;
+                    }
                 }
             }
         }
