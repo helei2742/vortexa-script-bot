@@ -5,31 +5,57 @@ import cn.com.vortexa.common.constants.HttpMethod;
 import cn.com.vortexa.common.dto.Result;
 import cn.com.vortexa.common.entity.AccountContext;
 import cn.com.vortexa.common.entity.ProxyInfo;
+import cn.com.vortexa.common.entity.RewordInfo;
+import cn.hutool.core.util.StrUtil;
+
 import com.alibaba.fastjson.JSONObject;
+
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * @author helei
  * @since 2025/3/24 17:15
  */
 public class OptimAIAPI {
+    private static final List<String> BROWSER_LIST = List.of("chrome", "firefox", "edge", "opera", "brave");
+    private static final String CLIENT_SECRET = "D1A167BD1346DDF2357DA5A2F2F2F";
 
     private static final String LOGIN_PAGE_URL = "https://node.optimai.network/login";
     private static final String LOGIN_WEBSITE_KEY = "0x4AAAAAAA-NTN9roDHAsPQe";
 
     private static final String SIGN_IN_API = "https://api.optimai.network/auth/signin";
     private static final String GET_TOKEN_API = "https://api.optimai.network/auth/token";
+    private static final String REFRESH_TOKEN_API = "https://api.optimai.network/auth/refresh";
+    private static final String NODE_REGISTER_API = "https://api.optimai.network/devices/register";
+    private static final String REWORD_QUERY_API = "/dashboard/stats";
 
-    private static final String ACCESS_TOKEN_KEY = "access_token";
-    private static final String REFRESH_TOKEN_KEY = "refresh_token";
+    public static final String ACCESS_TOKEN_KEY = "access_token";
+    public static final String REFRESH_TOKEN_KEY = "refresh_token";
+    public static final String WS_TOKEN = "ws_token";
+    public static final String BROWSER_KEY = "optimai_browser";
+    public static final String TIMEZONE_KEY = "timezone";
+
+    public static final Random random = new Random();
+    private static final Logger log = LoggerFactory.getLogger(OptimAIAPI.class);
 
     private final OptimAIBot optimAIBot;
 
@@ -37,9 +63,7 @@ public class OptimAIAPI {
         this.optimAIBot = optimAIBot;
     }
 
-
     public Result registry(AccountContext uniAC, String inviteCode) {
-
 
         return null;
     }
@@ -52,7 +76,9 @@ public class OptimAIAPI {
      * @throws Exception Exception
      */
     public Result login(AccountContext accountContext) throws Exception {
-        if (accountContext.getId() != 1) return Result.fail("");
+        if (accountContext.getId() != 1) {
+            return Result.fail("");
+        }
         ProxyInfo proxy = accountContext.getProxy();
         String simpleInfo = accountContext.getSimpleInfo();
 
@@ -117,7 +143,8 @@ public class OptimAIAPI {
                 accountContext.setParam(REFRESH_TOKEN_KEY, tokenResult.getString(REFRESH_TOKEN_KEY));
                 return Result.ok();
             } catch (Exception e) {
-                optimAIBot.logger.error("login error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+                optimAIBot.logger.error(
+                        "login error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
                 return Result.fail("");
             }
         });
@@ -126,26 +153,124 @@ public class OptimAIAPI {
     }
 
 
-    public JSONObject registryWSClient(AccountContext accountContext) throws Exception {
-        HashMap<String, Object> deviceInfo = new HashMap<>();
-        deviceInfo.put("cpu_cores", 1);
-        deviceInfo.put("memory_gb", 0);
-        deviceInfo.put("screen_width_px", 375);
-        deviceInfo.put("screen_height_px", 600);
-        deviceInfo.put("color_depth", 30);
-        deviceInfo.put("scale_factor", 1);
-        deviceInfo.put("browser_name", "chrome");
-        deviceInfo.put("device_type", "extension");
-        deviceInfo.put("language", "zh-CN");
-        deviceInfo.put("timezone", "Asia/Shanghai");
+    public Result refreshAccessToken(AccountContext accountContext)  {
+        String refreshToken = accountContext.getParam(REFRESH_TOKEN_KEY);
+        if (StrUtil.isBlank(refreshToken)) {
+            try {
+                return login(accountContext);
+            } catch (Exception e) {
+                return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+            }
+        }
 
+        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+        JSONObject body = new JSONObject();
+        body.put("refresh_token", refreshToken);
 
-        return null;
+        try {
+            String responseStr = optimAIBot.syncRequest(
+                    accountContext.getProxy(),
+                    REFRESH_TOKEN_API,
+                    HttpMethod.POST,
+                    headers,
+                    null,
+                    body,
+                    () -> accountContext.getSimpleInfo() + " start refresh token..."
+            ).get();
+
+            JSONObject result = JSONObject.parseObject(responseStr);
+            accountContext.setParam(ACCESS_TOKEN_KEY, result.getJSONObject("data").getString(ACCESS_TOKEN_KEY));
+            return Result.ok();
+        } catch (InterruptedException | ExecutionException e) {
+            return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+        }
     }
 
-    public String generateClientId(HashMap<String, Object> deviceInfo) {
+    public Result queryReword(AccountContext accountContext) {
+        String accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
+        if (accessToken == null) {
+            Result result = refreshAccessToken(accountContext);
+            if (!result.getSuccess()) {
+                return Result.fail("get access token error, " + result.getErrorMsg());
+            } else {
+                accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
+            }
+        }
 
-        return null;
+        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+        headers.put("Authorization", "Bearer " + accessToken);
+
+        try {
+            String responseStr = optimAIBot.syncRequest(
+                    accountContext.getProxy(),
+                    REWORD_QUERY_API,
+                    HttpMethod.GET,
+                    headers,
+                    null,
+                    null
+            ).get();
+            RewordInfo rewordInfo = accountContext.getRewordInfo();
+
+            JSONObject result = JSONObject.parseObject(responseStr);
+            JSONObject state = result.getJSONObject("data").getJSONObject("stats");
+            Double totalRewards = state.getDouble("total_rewards");
+            Object totalUptime = state.get("total_uptime");
+
+            rewordInfo.setTotalPoints(totalRewards);
+            rewordInfo.setSession(String.valueOf(totalUptime));
+            optimAIBot.logger.info(accountContext.getSimpleInfo()
+                    + " reword query success, total[%s] uptime[%s]".formatted(totalRewards, totalUptime));
+            return Result.ok();
+        } catch (InterruptedException | ExecutionException e) {
+            optimAIBot.logger.error(
+                    "query reword error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+            return Result.fail(e.getMessage());
+        }
+    }
+
+    public String registryNode2GetWSToken(AccountContext accountContext) throws Exception {
+        String accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
+        String browser = accountContext.getParam(BROWSER_KEY);
+        String timeZone = accountContext.getParam(TIMEZONE_KEY);
+        if (accessToken == null) {
+            throw new IllegalArgumentException("access token is empty");
+        }
+        if (browser == null) {
+            browser = BROWSER_LIST.get(random.nextInt(BROWSER_LIST.size()));
+            accountContext.setParam(BROWSER_KEY, browser);
+        }
+        if (timeZone == null) {
+            timeZone = getNetworkTimezone(accountContext);
+            accountContext.setParam(TIMEZONE_KEY, timeZone);
+        }
+
+        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+        headers.put("Authorization", accessToken);
+        headers.put("X-Client-Authentication", generateXClientAuthentication(browser, timeZone));
+
+        JSONObject deviceInfo = generateDeviceInfo(browser, timeZone);
+
+        String responseStr = optimAIBot
+                .syncRequest(accountContext.getProxy(), NODE_REGISTER_API, HttpMethod.POST, headers,
+                        null, deviceInfo, () -> accountContext.getSimpleInfo() + " send registry node request")
+                .get();
+        optimAIBot.logger.info(accountContext.getSimpleInfo() + " registry node[%s][%s] success..".formatted(browser, timeZone) + responseStr);
+
+        JSONObject result = JSONObject.parseObject(responseStr);
+        return result.getJSONObject("data").getString("ws_auth_token");
+    }
+
+    public String getNetworkTimezone(AccountContext accountContext) throws ExecutionException, InterruptedException {
+        String responseStr = optimAIBot.syncRequest(
+                accountContext.getProxy(),
+                "http://ip-api.com/json/",
+                HttpMethod.GET,
+                new HashMap<>(),
+                null,
+                null,
+                () -> accountContext.getSimpleInfo() + " get network detail"
+        ).get();
+        return JSONObject.parseObject(responseStr).getJSONObject("data").getString("timezone");
     }
 
     @NotNull
@@ -170,7 +295,6 @@ public class OptimAIAPI {
         return headers;
     }
 
-
     // 生成随机的 code_verifier（32 字节，转换为十六进制字符串）
     public static String generateCodeVerifier() {
         SecureRandom secureRandom = new SecureRandom();
@@ -194,5 +318,55 @@ public class OptimAIAPI {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed)
                 .replace("+", "-")
                 .replace("/", "_");
+    }
+
+    public static String generateXClientAuthentication(String browser, String timezone) throws NoSuchAlgorithmException, InvalidKeyException {
+        JSONObject body = new JSONObject();
+        body.put("client_app_id", "TLG_MINI_APP_V1");
+        body.put("timestamp", new Date());
+        JSONObject deviceInfo = generateDeviceInfo(browser, timezone);
+        body.put("device_info", deviceInfo);
+
+        String bodyStr = JSONObject.toJSONString(body);
+
+        // 创建HMAC-SHA256签名
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(CLIENT_SECRET.getBytes(), "HmacSHA256");
+        mac.init(secretKeySpec);
+        byte[] signatureBytes = mac.doFinal(bodyStr.getBytes());
+        // 计算签名
+        String signature = bytesToHex(signatureBytes);
+        body.put("signature", signature);
+        // 对tokenPayload进行Base64编码
+        String base64Token = Base64.getEncoder().encodeToString(JSONObject.toJSONString(body).getBytes());
+        // 将Base64字符串进行替换
+        base64Token = base64Token.replace("+", "-")
+                .replace("/", "_")
+                .replaceAll("=+$", "");
+        return base64Token;
+    }
+
+    private static @NotNull JSONObject generateDeviceInfo(String browser, String timezone) {
+        JSONObject deviceInfo = new JSONObject();
+        deviceInfo.put("cpu_cores", 1);
+        deviceInfo.put("memory_gb", 0);
+        deviceInfo.put("screen_width_px", 375);
+        deviceInfo.put("screen_height_px", 600);
+        deviceInfo.put("color_depth", 30);
+        deviceInfo.put("scale_factor", 1);
+        deviceInfo.put("browser_name", browser);
+        deviceInfo.put("device_type", "extension");
+        deviceInfo.put("language", "zh-CN");
+        deviceInfo.put("timezone", timezone);
+        return deviceInfo;
+    }
+
+    // 将字节数组转换为Hex字符串
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            hexString.append(String.format("%02x", b));
+        }
+        return hexString.toString();
     }
 }

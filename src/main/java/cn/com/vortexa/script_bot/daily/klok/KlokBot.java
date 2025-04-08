@@ -75,17 +75,17 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         return klokApi.registerOrLogin(accountContext, inviteCode);
     }
 
-    @BotMethod(jobType = BotJobType.QUERY_REWARD, intervalInSecond = 24 * 60 * 60)
+    @BotMethod(jobType = BotJobType.QUERY_REWARD, intervalInSecond = 24 * 60 * 60, uniqueAccount = true)
     public Result rewordQuery(AccountContext exampleAC, List<AccountContext> sameBAIDList) {
         return klokApi.rewordQuery(exampleAC);
     }
 
-    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 6 * 60 * 60, concurrentCount = 50)
+    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 6 * 60 * 60, concurrentCount = 10)
     public void dailyTask(AccountContext accountContext) throws ExecutionException, InterruptedException {
         klokApi.dailyTask(accountContext, inviteCode);
     }
 
-    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 40 * 60, concurrentCount = 50)
+    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60, concurrentCount = 50)
     public void autoRefer_v2(AccountContext accountContext) throws ExecutionException, InterruptedException {
         AutoBotConfig autoBotConfig = getAutoBotConfig();
         Integer count = (Integer) autoBotConfig.getCustomConfig().get(PEER_ACCOUNT_REFER_KEY);
@@ -274,7 +274,7 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
             try {
                 String responseStr = klokBot.syncRequest(
                         accountContext.getProxy(),
-                        BASE_API + "/v1/chat/stats",
+                        BASE_API + "/v1/points",
                         HttpMethod.GET,
                         headers,
                         null,
@@ -287,7 +287,7 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                 if (!accountContext.getParams().containsKey(DAILY_LIMIT)) {
                     accountContext.setParam(DAILY_LIMIT, response.getInteger("remaining"));
                 }
-                accountContext.getRewordInfo().setTotalPoints(response.getDouble("points_earned"));
+                accountContext.getRewordInfo().setTotalPoints(response.getDouble("total_points"));
                 return Result.ok();
             } catch (InterruptedException | ExecutionException e) {
                 String errorMsg = simpleInfo + " reword query error, " + (e.getCause() == null ? e.getCause().getMessage()

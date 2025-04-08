@@ -29,6 +29,6 @@ vortexa:
     service-instance:
       host: localhost
       port: 20001
-      group: default
+      groupId: default
       serviceId: script-node
       instanceId: script-node-macbook

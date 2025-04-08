@@ -11,8 +11,11 @@ import cn.com.vortexa.common.entity.AccountContext;
  */
 public class OptimAIWSClient extends BotJsonWSClient {
 
-    public OptimAIWSClient(AccountContext accountContext, String connectUrl) {
+    private final OptimAIBot optimAIBot;
+
+    public OptimAIWSClient(OptimAIBot optimAIBot, AccountContext accountContext, String connectUrl) {
         super(accountContext, connectUrl);
+        this.optimAIBot = optimAIBot;
     }
 
     @Override

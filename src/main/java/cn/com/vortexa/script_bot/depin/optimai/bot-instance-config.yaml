@@ -1,0 +1,10 @@
+vortexa:
+  bot-instance:
+    botKey: 'optim_ai_test'
+    className: 'cn.com.vortexa.script_bot.depin.optimai.OptimAIBot'
+    classFileName: 'OptimAIBot.java'
+    accountConfig:
+      configFilePath: "D://workspace//Vortexa-dev_3.0//botData//config//app//optim_ai_google.xlsx"
+    customConfig:
+      invite_code: "WSJQRJD5CB"
+      two_captcha_api_key: "1231235"
