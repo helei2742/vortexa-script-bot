@@ -16,6 +16,7 @@ import cn.hutool.core.lang.Pair;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -28,7 +29,7 @@ import java.util.List;
         accountParams = MagicNewtonBot.FINGER_BROWSER_SEQ
 )
 public class MagicNewtonBot extends AutoLaunchBot<MagicNewtonBot> {
-    public static final int WINDOW_SIZE = 2;
+    public static final int WINDOW_SIZE = 4;
     public static final String BIT_BROWSER_API_URL = "bit_browser_api_url";
     public static final String CHROME_DRIVER_URL = "chrome_driver_url";
     public static final String FINGER_BROWSER_SEQ = "finger_browser_seq";
@@ -52,13 +53,18 @@ public class MagicNewtonBot extends AutoLaunchBot<MagicNewtonBot> {
     }
 
     @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60 * 12, concurrentCount = WINDOW_SIZE)
-    public void dailyTask(AccountContext accountContext) throws IOException {
+    public void dailyTask(AccountContext accountContext) throws IOException, InterruptedException {
+        if (accountContext.getId() < 23) return;
+
+
         Integer fingerSeq = Integer.parseInt(accountContext.getParam(FINGER_BROWSER_SEQ));
         runningBrowserWindow.add(fingerSeq);
         String simpleInfo = accountContext.getSimpleInfo();
 
         try {
-            browserDriver.flexAbleWindowBounds(new ArrayList<>(runningBrowserWindow));
+            if (runningBrowserWindow.size() == WINDOW_SIZE) {
+                browserDriver.flexAbleWindowBounds(new ArrayList<>(runningBrowserWindow));
+            }
 
             String debuggerAddress = browserDriver.startWebDriverBySeq(fingerSeq);
             MagicNewtonSelenium magicNewtonSelenium = new MagicNewtonSelenium(simpleInfo,
@@ -70,8 +76,9 @@ public class MagicNewtonBot extends AutoLaunchBot<MagicNewtonBot> {
                             .build()
             );
             magicNewtonSelenium.syncStart();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             logger.error(simpleInfo + " rpa execute error", e);
+            TimeUnit.SECONDS.sleep( getRandom().nextInt(15));
         } finally {
             runningBrowserWindow.remove(fingerSeq);
         }

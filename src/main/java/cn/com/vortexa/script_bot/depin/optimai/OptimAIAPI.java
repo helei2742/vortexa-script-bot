@@ -153,7 +153,7 @@ public class OptimAIAPI {
     }
 
 
-    public Result refreshAccessToken(AccountContext accountContext)  {
+    public Result refreshAccessToken(AccountContext accountContext) {
         String refreshToken = accountContext.getParam(REFRESH_TOKEN_KEY);
         if (StrUtil.isBlank(refreshToken)) {
             try {
@@ -233,7 +233,12 @@ public class OptimAIAPI {
         String browser = accountContext.getParam(BROWSER_KEY);
         String timeZone = accountContext.getParam(TIMEZONE_KEY);
         if (accessToken == null) {
-            throw new IllegalArgumentException("access token is empty");
+            Result result = refreshAccessToken(accountContext);
+            if (result.getSuccess()) {
+                accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
+            } else {
+                throw new RuntimeException("get access token error");
+            }
         }
         if (browser == null) {
             browser = BROWSER_LIST.get(random.nextInt(BROWSER_LIST.size()));
@@ -369,4 +374,5 @@ public class OptimAIAPI {
         }
         return hexString.toString();
     }
+
 }

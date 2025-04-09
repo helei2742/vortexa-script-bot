@@ -1,0 +1,13 @@
+vortexa:
+  bot-instance:
+    botKey: 'magic_newton_v2'
+    className: 'cn.com.vortexa.script_bot.daily.magic_newton_v2.MagicNewtonBotV2'
+    classFileName: 'MagicNewtonBotV2.java'
+#    extraClass:
+#      - className: "cn.com.vortexa.script_bot.daily.magic_newton.MagicNewtonSelenium"
+#        classFileName: "MagicNewtonSelenium.java"
+    accountConfig:
+      configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/magic_newton.xlsx"
+    customConfig:
+      finger_browser_api_url: 'http://192.168.1.2:54888'
+      chrome_driver_url: 'http://192.168.1.2:54999'
