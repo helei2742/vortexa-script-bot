@@ -2,17 +2,14 @@ package cn.com.vortexa.script_bot.depin.optimai;
 
 import cn.com.vortexa.script_node.anno.BotApplication;
 import cn.com.vortexa.script_node.anno.BotMethod;
-import cn.com.vortexa.script_node.anno.BotWSMethodConfig;
 import cn.com.vortexa.script_node.bot.AutoLaunchBot;
 import cn.com.vortexa.common.dto.config.AutoBotConfig;
 import cn.com.vortexa.script_node.service.BotApi;
 import cn.com.vortexa.common.constants.BotJobType;
 import cn.com.vortexa.common.dto.Result;
 import cn.com.vortexa.common.entity.AccountContext;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author helei
@@ -21,7 +18,6 @@ import java.util.Map;
 @BotApplication(name = "optim_ai", configParams = {OptimAIBot.TWO_CAPTCHA_API_KEY})
 public class OptimAIBot extends AutoLaunchBot<OptimAIBot> {
 
-    private static final String WS_CONNECT_URL = "wss://ws.optimai.network/?token=%s";
     public static final String TWO_CAPTCHA_API_KEY = "two_captcha_api_key";
     public static final String PASSWORD_KEY = "password";
 
@@ -51,7 +47,7 @@ public class OptimAIBot extends AutoLaunchBot<OptimAIBot> {
         return optimAIAPI.login(accountContext);
     }
 
-    @BotMethod(jobType = BotJobType.QUERY_REWARD, intervalInSecond = 24 * 60 * 60, concurrentCount = 10)
+    @BotMethod(jobType = BotJobType.QUERY_REWARD, intervalInSecond = 24 * 60 * 60, concurrentCount = 10, uniqueAccount = true)
     public Result queryReword(AccountContext accountContext, List<AccountContext> sameAC) {
         return optimAIAPI.queryReword(accountContext);
     }
@@ -68,10 +64,10 @@ public class OptimAIBot extends AutoLaunchBot<OptimAIBot> {
 
     @BotMethod(
             jobType = BotJobType.TIMED_TASK,
-            intervalInSecond = 12 * 60
+            intervalInSecond = 12 * 60,
+            concurrentCount = 50
     )
     public void keepAlive(AccountContext accountContext) {
-        if (accountContext.getId() != 1) return;
         Result result = optimAIAPI.keepAlive(accountContext);
         if (result.getSuccess()) {
             logger.info(accountContext.getSimpleInfo() + " keepalive success");

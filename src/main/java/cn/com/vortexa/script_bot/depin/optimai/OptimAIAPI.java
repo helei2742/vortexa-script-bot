@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -56,10 +57,8 @@ public class OptimAIAPI {
     public static final String TIMEZONE_KEY = "timezone";
     public static final String USER_ID_KEY = "user_id";
     public static final String DEVICE_ID_KEY = "device_id";
-    public static final String ONLINE_BODY_KEY = "online_body";
 
     public static final Random random = new Random();
-    private static final Logger log = LoggerFactory.getLogger(OptimAIAPI.class);
 
     private final OptimAIBot optimAIBot;
 
@@ -80,18 +79,16 @@ public class OptimAIAPI {
      * @throws Exception Exception
      */
     public Result login(AccountContext accountContext) throws Exception {
-        if (accountContext.getId() != 1) {
-            return Result.fail("");
-        }
         ProxyInfo proxy = accountContext.getProxy();
         String simpleInfo = accountContext.getSimpleInfo();
+        if (!StrUtil.isBlank(accountContext.getParam(REFRESH_TOKEN_KEY))) return Result.ok();
 
         optimAIBot.logger.info(simpleInfo + " start cf resolve...");
         CompletableFuture<Result> future = CloudFlareResolver.cloudFlareResolve(
-                proxy,
-                LOGIN_PAGE_URL,
-                LOGIN_WEBSITE_KEY,
-                optimAIBot.getAutoBotConfig().getConfig(OptimAIBot.TWO_CAPTCHA_API_KEY)
+            proxy,
+            LOGIN_PAGE_URL,
+            LOGIN_WEBSITE_KEY,
+            optimAIBot.getAutoBotConfig().getConfig(OptimAIBot.TWO_CAPTCHA_API_KEY)
         ).thenApplyAsync(twoCaptchaResult -> {
             try {
                 optimAIBot.logger.info(simpleInfo + " cf resolve success");
@@ -110,13 +107,13 @@ public class OptimAIAPI {
                 Map<String, String> signInHeaders = buildSignInHeader(accountContext, userAgent);
 
                 String signInStr = optimAIBot.syncRequest(
-                        proxy,
-                        SIGN_IN_API,
-                        HttpMethod.POST,
-                        signInHeaders,
-                        null,
-                        body,
-                        () -> simpleInfo + " start login"
+                    proxy,
+                    SIGN_IN_API,
+                    HttpMethod.POST,
+                    signInHeaders,
+                    null,
+                    body,
+                    () -> simpleInfo + " start login"
                 ).get();
 
                 JSONObject signIn = JSONObject.parseObject(signInStr);
@@ -132,13 +129,13 @@ public class OptimAIAPI {
                 Map<String, String> tokenHeader = buildTokenHeader(accountContext, userAgent);
 
                 String getTokenStr = optimAIBot.syncRequest(
-                        proxy,
-                        GET_TOKEN_API,
-                        HttpMethod.POST,
-                        tokenHeader,
-                        null,
-                        getTokenBody,
-                        () -> simpleInfo + " start get token"
+                    proxy,
+                    GET_TOKEN_API,
+                    HttpMethod.POST,
+                    tokenHeader,
+                    null,
+                    getTokenBody,
+                    () -> simpleInfo + " start get token"
                 ).get();
                 JSONObject tokenResult = JSONObject.parseObject(getTokenStr);
 
@@ -148,14 +145,13 @@ public class OptimAIAPI {
                 return Result.ok();
             } catch (Exception e) {
                 optimAIBot.logger.error(
-                        "login error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+                    "login error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
                 return Result.fail("");
             }
         });
 
         return future.get();
     }
-
 
     public Result refreshAccessToken(AccountContext accountContext) {
         String refreshToken = accountContext.getParam(REFRESH_TOKEN_KEY);
@@ -173,13 +169,13 @@ public class OptimAIAPI {
 
         try {
             String responseStr = optimAIBot.syncRequest(
-                    accountContext.getProxy(),
-                    REFRESH_TOKEN_API,
-                    HttpMethod.POST,
-                    headers,
-                    null,
-                    body,
-                    () -> accountContext.getSimpleInfo() + " start refresh token..."
+                accountContext.getProxy(),
+                REFRESH_TOKEN_API,
+                HttpMethod.POST,
+                headers,
+                null,
+                body,
+                () -> accountContext.getSimpleInfo() + " start refresh token..."
             ).get();
 
             JSONObject result = JSONObject.parseObject(responseStr);
@@ -206,13 +202,13 @@ public class OptimAIAPI {
 
         try {
             String responseStr = optimAIBot.syncRequest(
-                    accountContext.getProxy(),
-                    BASE_API + "/auth/me?platforms=all",
-                    HttpMethod.GET,
-                    headers,
-                    null,
-                    null,
-                    () -> accountContext.getSimpleInfo() + " start get user id"
+                accountContext.getProxy(),
+                BASE_API + "/auth/me?platforms=all",
+                HttpMethod.GET,
+                headers,
+                null,
+                null,
+                () -> accountContext.getSimpleInfo() + " start get user id"
             ).get();
             JSONObject result = JSONObject.parseObject(responseStr);
             String userId = result.getJSONObject("user").getString("id");
@@ -239,13 +235,13 @@ public class OptimAIAPI {
 
         try {
             String responseStr = optimAIBot.syncRequest(
-                    accountContext.getProxy(),
-                    BASE_API + "/devices?limit=10&sort_by=last_used_at",
-                    HttpMethod.GET,
-                    headers,
-                    null,
-                    null,
-                    () -> accountContext.getSimpleInfo() + " start get device id"
+                accountContext.getProxy(),
+                BASE_API + "/devices?limit=10&sort_by=last_used_at",
+                HttpMethod.GET,
+                headers,
+                null,
+                null,
+                () -> accountContext.getSimpleInfo() + " start get device id"
             ).get();
 
             JSONObject result = JSONObject.parseObject(responseStr);
@@ -284,13 +280,13 @@ public class OptimAIAPI {
 
             try {
                 String responseStr = optimAIBot.syncRequest(
-                        accountContext.getProxy(),
-                        BASE_API + "/uptime/online",
-                        HttpMethod.POST,
-                        headers,
-                        null,
-                        body,
-                        () -> accountContext.getSimpleInfo() + " send keepalive request"
+                    accountContext.getProxy(),
+                    BASE_API + "/uptime/online",
+                    HttpMethod.POST,
+                    headers,
+                    null,
+                    body,
+                    () -> accountContext.getSimpleInfo() + " send keepalive request"
                 ).get();
 
                 return Result.ok(responseStr);
@@ -349,12 +345,12 @@ public class OptimAIAPI {
 
         try {
             String responseStr = optimAIBot.syncRequest(
-                    accountContext.getProxy(),
-                    REWORD_QUERY_API,
-                    HttpMethod.GET,
-                    headers,
-                    null,
-                    null
+                accountContext.getProxy(),
+                REWORD_QUERY_API,
+                HttpMethod.GET,
+                headers,
+                null,
+                null
             ).get();
             RewordInfo rewordInfo = accountContext.getRewordInfo();
 
@@ -366,25 +362,24 @@ public class OptimAIAPI {
             rewordInfo.setTotalPoints(totalRewards);
             rewordInfo.setSession(String.valueOf(totalUptime));
             optimAIBot.logger.info(accountContext.getSimpleInfo()
-                    + " reword query success, total[%s] uptime[%s]".formatted(totalRewards, totalUptime));
+                + " reword query success, total[%s] uptime[%s]".formatted(totalRewards, totalUptime));
             return Result.ok();
         } catch (InterruptedException | ExecutionException e) {
             optimAIBot.logger.error(
-                    "query reword error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+                "query reword error, " + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
             return Result.fail(e.getMessage());
         }
     }
 
-
     public String getNetworkTimezone(AccountContext accountContext) throws ExecutionException, InterruptedException {
         String responseStr = optimAIBot.syncRequest(
-                accountContext.getProxy(),
-                "http://ip-api.com/json/",
-                HttpMethod.GET,
-                new HashMap<>(),
-                null,
-                null,
-                () -> accountContext.getSimpleInfo() + " get network detail"
+            accountContext.getProxy(),
+            "http://ip-api.com/json/",
+            HttpMethod.GET,
+            new HashMap<>(),
+            null,
+            null,
+            () -> accountContext.getSimpleInfo() + " get network detail"
         ).get();
         return JSONObject.parseObject(responseStr).getJSONObject("data").getString("timezone");
     }
@@ -432,11 +427,12 @@ public class OptimAIAPI {
 
         // Base64 URL 编码（去掉填充 =）
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed)
-                .replace("+", "-")
-                .replace("/", "_");
+            .replace("+", "-")
+            .replace("/", "_");
     }
 
-    public static String generateXClientAuthentication(String browser, String timezone) throws NoSuchAlgorithmException, InvalidKeyException {
+    public static String generateXClientAuthentication(String browser, String timezone)
+        throws NoSuchAlgorithmException, InvalidKeyException {
         JSONObject body = new JSONObject();
         body.put("client_app_id", "TLG_MINI_APP_V1");
         body.put("timestamp", new Date());
@@ -457,8 +453,8 @@ public class OptimAIAPI {
         String base64Token = Base64.getEncoder().encodeToString(JSONObject.toJSONString(body).getBytes());
         // 将Base64字符串进行替换
         base64Token = base64Token.replace("+", "-")
-                .replace("/", "_")
-                .replaceAll("=+$", "");
+            .replace("/", "_")
+            .replaceAll("=+$", "");
         return base64Token;
     }
 
@@ -488,29 +484,33 @@ public class OptimAIAPI {
 
     // Fibonacci transformation function
     private static int Ts(int e) {
-        int t = 0, i = 1;
+        double t = 0, i = 1;
         for (int s = 0; s < e; s++) {
-            int temp = t;
+            double temp = t;
             t = i;
             i = temp + i;
         }
-        return t % 20;
+        return (int) (t % 20);
     }
 
     // String transformation function Bs
     private static String Bs(String e) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder result = new StringBuilder();
+
         for (int i = 0; i < e.length(); i++) {
-            sb.append((char) (e.charAt(i) + Ts(i)));
+            int t = e.codePointAt(i);
+            result.append(Character.toChars(t +  Ts(i)));
         }
-        return sb.toString();
+        return result.toString();
     }
 
     // XOR transformation function Rs
     private static String Rs(String e) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < e.length(); i++) {
-            sb.append((char) ((e.charAt(i) ^ (i % 256)) & 255));
+            char t = e.charAt(i);
+            char transformed = (char) ((t ^ (i % 256)) & 255);
+            sb.append(transformed);
         }
         return sb.toString();
     }
@@ -527,25 +527,25 @@ public class OptimAIAPI {
     }
 
     // Final transformation function Ur
-    public static String Ur(Object e) {
-        return encodeToBase64(Ss(Rs(Bs(JSONObject.toJSONString(e)))));
+    public static String Ur(String e) {
+        return encodeToBase64(Ss(Rs(Bs(e))));
     }
 
     // Helper method to encode a string to Base64
     private static String encodeToBase64(String str) {
-        return Base64.getEncoder().encodeToString(str.getBytes());
+        byte[] encode = Base64.getEncoder().encode(str.getBytes(StandardCharsets.ISO_8859_1));
+        return new String(encode);
     }
 
+    private static final String template
+        = "{\"duration\":600000,\"user_id\":\"%s\",\"device_id\":\"%s\",\"device_type\":\"telegram\",\"timestamp\":%d}";
 
     public static void main(String[] args) {
-        JSONObject body = new JSONObject();
-        body.put("duration", 600000);
-        body.put("user_id", "c17c9b6a-c261-4870-aac6-7a580e330d58");
-        body.put("device_id", "0195c17f-661d-70eb-8726-5c56303832b5");
-        body.put("device_type", "telegram");
-        body.put("timestamp", 1744264244445L);
+        String str = template.formatted("c17c9b6a-c261-4870-aac6-7a580e330d58",
+            "0195c17f-661d-70eb-8726-5c56303832b5", 1744264244445L);
+        System.out.println("json\n" + str);
 
-        String result = Ur(body);
+        String result = Ur(str);
         System.out.println(result);
     }
 }
