@@ -85,7 +85,7 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         klokApi.dailyTask(accountContext, inviteCode);
     }
 
-    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60, concurrentCount = 10)
+    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60, concurrentCount = 50)
     public void autoRefer_v2(AccountContext accountContext) throws ExecutionException, InterruptedException {
         AutoBotConfig autoBotConfig = getAutoBotConfig();
         Integer count = (Integer) autoBotConfig.getCustomConfig().get(PEER_ACCOUNT_REFER_KEY);

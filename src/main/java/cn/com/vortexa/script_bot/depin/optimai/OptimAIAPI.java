@@ -8,6 +8,7 @@ import cn.com.vortexa.common.entity.ProxyInfo;
 import cn.com.vortexa.common.entity.RewordInfo;
 import cn.hutool.core.util.StrUtil;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
 import org.jetbrains.annotations.NotNull;
@@ -45,14 +46,17 @@ public class OptimAIAPI {
     private static final String SIGN_IN_API = "https://api.optimai.network/auth/signin";
     private static final String GET_TOKEN_API = "https://api.optimai.network/auth/token";
     private static final String REFRESH_TOKEN_API = "https://api.optimai.network/auth/refresh";
+    private static final String BASE_API = "https://api.optimai.network";
     private static final String NODE_REGISTER_API = "https://api.optimai.network/devices/register";
     private static final String REWORD_QUERY_API = "/dashboard/stats";
 
     public static final String ACCESS_TOKEN_KEY = "access_token";
     public static final String REFRESH_TOKEN_KEY = "refresh_token";
-    public static final String WS_TOKEN = "ws_token";
     public static final String BROWSER_KEY = "optimai_browser";
     public static final String TIMEZONE_KEY = "timezone";
+    public static final String USER_ID_KEY = "user_id";
+    public static final String DEVICE_ID_KEY = "device_id";
+    public static final String ONLINE_BODY_KEY = "online_body";
 
     public static final Random random = new Random();
     private static final Logger log = LoggerFactory.getLogger(OptimAIAPI.class);
@@ -186,6 +190,149 @@ public class OptimAIAPI {
         }
     }
 
+    public Result queryUserId(AccountContext accountContext) {
+        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+        String token = accountContext.getParam(ACCESS_TOKEN_KEY);
+        if (StrUtil.isBlank(token)) {
+            try {
+                refreshAccessToken(accountContext);
+                token = accountContext.getParam(ACCESS_TOKEN_KEY);
+            } catch (Exception e) {
+                return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+            }
+        }
+
+        headers.put("authorization", "Bearer " + token);
+
+        try {
+            String responseStr = optimAIBot.syncRequest(
+                    accountContext.getProxy(),
+                    BASE_API + "/auth/me?platforms=all",
+                    HttpMethod.GET,
+                    headers,
+                    null,
+                    null,
+                    () -> accountContext.getSimpleInfo() + " start get user id"
+            ).get();
+            JSONObject result = JSONObject.parseObject(responseStr);
+            String userId = result.getJSONObject("user").getString("id");
+            accountContext.setParam(USER_ID_KEY, userId);
+            return Result.ok();
+        } catch (Exception e) {
+            return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+        }
+    }
+
+    public Result queryDeviceId(AccountContext accountContext) {
+        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+        String token = accountContext.getParam(ACCESS_TOKEN_KEY);
+        if (StrUtil.isBlank(token)) {
+            try {
+                refreshAccessToken(accountContext);
+                token = accountContext.getParam(ACCESS_TOKEN_KEY);
+            } catch (Exception e) {
+                return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+            }
+        }
+
+        headers.put("authorization", "Bearer " + token);
+
+        try {
+            String responseStr = optimAIBot.syncRequest(
+                    accountContext.getProxy(),
+                    BASE_API + "/devices?limit=10&sort_by=last_used_at",
+                    HttpMethod.GET,
+                    headers,
+                    null,
+                    null,
+                    () -> accountContext.getSimpleInfo() + " start get device id"
+            ).get();
+
+            JSONObject result = JSONObject.parseObject(responseStr);
+            JSONArray items = result.getJSONArray("items");
+
+            String deviceId = null;
+            for (int i = 0; i < items.size(); i++) {
+                JSONObject jb = items.getJSONObject(i);
+                if (!"telegram".equals(jb.getString("device_type"))) {
+                    deviceId = jb.getString("id");
+                }
+            }
+
+            if (StrUtil.isBlank(deviceId)) {
+                Result.fail("please register node first");
+            }
+            accountContext.setParam(DEVICE_ID_KEY, deviceId);
+            return Result.ok();
+        } catch (Exception e) {
+            return Result.fail(e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+        }
+    }
+
+    public Result keepAlive(AccountContext accountContext) {
+        Result result = generateOnlineBody(accountContext);
+        if (result.getSuccess()) {
+            String data = (String) result.getData();
+
+            String token = accountContext.getParam(ACCESS_TOKEN_KEY);
+
+            Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+            headers.put("authorization", "Bearer " + token);
+
+            JSONObject body = new JSONObject();
+            body.put("data", data);
+
+            try {
+                String responseStr = optimAIBot.syncRequest(
+                        accountContext.getProxy(),
+                        BASE_API + "/uptime/online",
+                        HttpMethod.POST,
+                        headers,
+                        null,
+                        body,
+                        () -> accountContext.getSimpleInfo() + " send keepalive request"
+                ).get();
+
+                return Result.ok(responseStr);
+            } catch (InterruptedException | ExecutionException e) {
+                return Result.fail("keepalive request error, " + result.getErrorMsg());
+            }
+        } else {
+            return Result.fail("online body generate error, " + result.getErrorMsg());
+        }
+    }
+
+    public Result generateOnlineBody(AccountContext accountContext) {
+        String userId = accountContext.getParam(USER_ID_KEY);
+        if (StrUtil.isBlank(userId)) {
+            Result result = queryUserId(accountContext);
+            if (result.getSuccess()) {
+                userId = accountContext.getParam(USER_ID_KEY);
+            } else {
+                return Result.fail("userId request error, " + result.getErrorMsg());
+            }
+        }
+
+        String deviceId = accountContext.getParam(DEVICE_ID_KEY);
+        if (StrUtil.isBlank(deviceId)) {
+            Result result = queryDeviceId(accountContext);
+            if (result.getSuccess()) {
+                deviceId = accountContext.getParam(DEVICE_ID_KEY);
+            } else {
+                return Result.fail("deviceId request error, " + result.getErrorMsg());
+
+            }
+        }
+        JSONObject body = new JSONObject();
+        body.put("duration", 600000);
+        body.put("user_id", userId);
+        body.put("device_id", deviceId);
+        body.put("device_type", "telegram");
+        body.put("timestamp", System.currentTimeMillis());
+
+        return Result.ok(Ur(body.toJSONString()));
+    }
+
     public Result queryReword(AccountContext accountContext) {
         String accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
         if (accessToken == null) {
@@ -228,42 +375,6 @@ public class OptimAIAPI {
         }
     }
 
-    public String registryNode2GetWSToken(AccountContext accountContext) throws Exception {
-        String accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
-        String browser = accountContext.getParam(BROWSER_KEY);
-        String timeZone = accountContext.getParam(TIMEZONE_KEY);
-        if (accessToken == null) {
-            Result result = refreshAccessToken(accountContext);
-            if (result.getSuccess()) {
-                accessToken = accountContext.getParam(ACCESS_TOKEN_KEY);
-            } else {
-                throw new RuntimeException("get access token error");
-            }
-        }
-        if (browser == null) {
-            browser = BROWSER_LIST.get(random.nextInt(BROWSER_LIST.size()));
-            accountContext.setParam(BROWSER_KEY, browser);
-        }
-        if (timeZone == null) {
-            timeZone = getNetworkTimezone(accountContext);
-            accountContext.setParam(TIMEZONE_KEY, timeZone);
-        }
-
-        Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
-        headers.put("Authorization", accessToken);
-        headers.put("X-Client-Authentication", generateXClientAuthentication(browser, timeZone));
-
-        JSONObject deviceInfo = generateDeviceInfo(browser, timeZone);
-
-        String responseStr = optimAIBot
-                .syncRequest(accountContext.getProxy(), NODE_REGISTER_API, HttpMethod.POST, headers,
-                        null, deviceInfo, () -> accountContext.getSimpleInfo() + " send registry node request")
-                .get();
-        optimAIBot.logger.info(accountContext.getSimpleInfo() + " registry node[%s][%s] success..".formatted(browser, timeZone) + responseStr);
-
-        JSONObject result = JSONObject.parseObject(responseStr);
-        return result.getJSONObject("data").getString("ws_auth_token");
-    }
 
     public String getNetworkTimezone(AccountContext accountContext) throws ExecutionException, InterruptedException {
         String responseStr = optimAIBot.syncRequest(
@@ -375,4 +486,66 @@ public class OptimAIAPI {
         return hexString.toString();
     }
 
+    // Fibonacci transformation function
+    private static int Ts(int e) {
+        int t = 0, i = 1;
+        for (int s = 0; s < e; s++) {
+            int temp = t;
+            t = i;
+            i = temp + i;
+        }
+        return t % 20;
+    }
+
+    // String transformation function Bs
+    private static String Bs(String e) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < e.length(); i++) {
+            sb.append((char) (e.charAt(i) + Ts(i)));
+        }
+        return sb.toString();
+    }
+
+    // XOR transformation function Rs
+    private static String Rs(String e) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < e.length(); i++) {
+            sb.append((char) ((e.charAt(i) ^ (i % 256)) & 255));
+        }
+        return sb.toString();
+    }
+
+    // Swap transformation function Ss
+    private static String Ss(String e) {
+        char[] arr = e.toCharArray();
+        for (int i = 0; i < arr.length - 1; i += 2) {
+            char temp = arr[i];
+            arr[i] = arr[i + 1];
+            arr[i + 1] = temp;
+        }
+        return new String(arr);
+    }
+
+    // Final transformation function Ur
+    public static String Ur(Object e) {
+        return encodeToBase64(Ss(Rs(Bs(JSONObject.toJSONString(e)))));
+    }
+
+    // Helper method to encode a string to Base64
+    private static String encodeToBase64(String str) {
+        return Base64.getEncoder().encodeToString(str.getBytes());
+    }
+
+
+    public static void main(String[] args) {
+        JSONObject body = new JSONObject();
+        body.put("duration", 600000);
+        body.put("user_id", "c17c9b6a-c261-4870-aac6-7a580e330d58");
+        body.put("device_id", "0195c17f-661d-70eb-8726-5c56303832b5");
+        body.put("device_type", "telegram");
+        body.put("timestamp", 1744264244445L);
+
+        String result = Ur(body);
+        System.out.println(result);
+    }
 }

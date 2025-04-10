@@ -4,7 +4,7 @@ vortexa:
     className: 'cn.com.vortexa.script_bot.depin.optimai.OptimAIBot'
     classFileName: 'OptimAIBot.java'
     accountConfig:
-      configFilePath: "D://workspace//Vortexa-dev_3.0//botData//config//app//optim_ai_google.xlsx"
+      configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/optimai_google.xlsx"
     customConfig:
       invite_code: "WSJQRJD5CB"
-      two_captcha_api_key: "1231235"
+      two_captcha_api_key: "c03504065d26827ca9e5b2b9a6147ec3"
