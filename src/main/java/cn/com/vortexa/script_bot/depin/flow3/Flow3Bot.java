@@ -57,6 +57,16 @@ public class Flow3Bot extends AutoLaunchBot<Flow3Bot> {
         return result;
     }
 
+    @BotMethod(jobType = BotJobType.ONCE_TASK, concurrentCount = 50, intervalInSecond = 30)
+    public void login(AccountContext accountContext) {
+        Result result = flow3Api.login(accountContext);
+        if (result.getSuccess()) {
+            logger.info(accountContext.getSimpleInfo() + " login success, " + result.getData());
+        } else {
+            logger.error(accountContext.getSimpleInfo() + " login fail, " + result.getErrorMsg());
+        }
+    }
+
     @BotMethod(jobType = BotJobType.TIMED_TASK, concurrentCount = 50, intervalInSecond = 30)
     public void keepAlive(AccountContext accountContext) {
         Result result = flow3Api.keepAlive(accountContext);

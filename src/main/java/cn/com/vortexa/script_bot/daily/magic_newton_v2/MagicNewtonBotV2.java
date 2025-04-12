@@ -67,8 +67,8 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
                     return true;
                 })
                 .executeItems(List.of(
-                        ExecuteItem.builder().name("进入扫雷界面").executeLogic(this::enterScanBoom).build(),
-                        ExecuteItem.builder().name("扫雷。。。").executeLogic(this::scanBoomProcess).build()
+                        ExecuteItem.builder().name("进入扫雷界面").executeLogic(this::enterScanBoom).build()
+//                        , ExecuteItem.builder().name("扫雷。。。").executeLogic(this::scanBoomProcess).build()
                 ))
                 .build()
         );

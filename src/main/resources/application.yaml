@@ -20,7 +20,9 @@ vortexa:
     bot-group: helei-macbook
     bot-instance-locations: /Users/helei/develop/ideaworkspace/BotFramework/vortexa-script-bot/src/main/java/cn/com/vortexa/script_bot
     auto-launch-bot-keys:
-      - optim_ai_test
+#      - optim_ai_test
+#      - klok_test
+      - flow3_bot_test
   #    bot-instance-locations: "reactive:"
   script-agent:
     registryCenterUrl: ws://localhost:18848

@@ -64,7 +64,7 @@ public class OptimAIBot extends AutoLaunchBot<OptimAIBot> {
 
     @BotMethod(
             jobType = BotJobType.TIMED_TASK,
-            intervalInSecond = 12 * 60,
+            intervalInSecond = 8 * 60,
             concurrentCount = 50
     )
     public void keepAlive(AccountContext accountContext) {

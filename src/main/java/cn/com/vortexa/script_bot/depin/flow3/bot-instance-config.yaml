@@ -1,0 +1,10 @@
+vortexa:
+  bot-instance:
+    botKey: 'flow3_bot_test'
+    className: 'cn.com.vortexa.script_bot.depin.flow3.Flow3Bot'
+    classFileName: 'Flow3Bot.java'
+    accountConfig:
+      configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/optimai_google.xlsx"
+    customConfig:
+      invite_code: "ou3n2sUVD"
+      two_captcha_api_key: "c0357ec3"
