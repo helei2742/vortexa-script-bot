@@ -12,35 +12,21 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 /**
  * @author helei
  * @since 2025/3/24 17:15
  */
 public class OptimAIAPI {
-    private static final List<String> BROWSER_LIST = List.of("chrome", "firefox", "edge", "opera", "brave");
-    private static final String CLIENT_SECRET = "D1A167BD1346DDF2357DA5A2F2F2F";
-
     private static final String LOGIN_PAGE_URL = "https://node.optimai.network/login";
     private static final String LOGIN_WEBSITE_KEY = "0x4AAAAAAA-NTN9roDHAsPQe";
 
@@ -48,13 +34,10 @@ public class OptimAIAPI {
     private static final String GET_TOKEN_API = "https://api.optimai.network/auth/token";
     private static final String REFRESH_TOKEN_API = "https://api.optimai.network/auth/refresh";
     private static final String BASE_API = "https://api.optimai.network";
-    private static final String NODE_REGISTER_API = "https://api.optimai.network/devices/register";
     private static final String REWORD_QUERY_API = "/dashboard/stats";
 
     public static final String ACCESS_TOKEN_KEY = "access_token";
     public static final String REFRESH_TOKEN_KEY = "refresh_token";
-    public static final String BROWSER_KEY = "optimai_browser";
-    public static final String TIMEZONE_KEY = "timezone";
     public static final String USER_ID_KEY = "user_id";
     public static final String DEVICE_ID_KEY = "device_id";
 
@@ -81,6 +64,8 @@ public class OptimAIAPI {
     public Result login(AccountContext accountContext) throws Exception {
         ProxyInfo proxy = accountContext.getProxy();
         String simpleInfo = accountContext.getSimpleInfo();
+        String userAgent = accountContext.getBrowserEnv().getUserAgent();
+
         if (!StrUtil.isBlank(accountContext.getParam(REFRESH_TOKEN_KEY))) return Result.ok();
 
         optimAIBot.logger.info(simpleInfo + " start cf resolve...");
@@ -89,11 +74,9 @@ public class OptimAIAPI {
             LOGIN_PAGE_URL,
             LOGIN_WEBSITE_KEY,
             optimAIBot.getAutoBotConfig().getConfig(OptimAIBot.TWO_CAPTCHA_API_KEY)
-        ).thenApplyAsync(twoCaptchaResult -> {
+        ).thenApplyAsync(token -> {
             try {
                 optimAIBot.logger.info(simpleInfo + " cf resolve success");
-                String userAgent = twoCaptchaResult.getString("userAgent");
-                String token = twoCaptchaResult.getString("token");
 
                 JSONObject body = new JSONObject();
                 String codeVerifier = generateCodeVerifier();
@@ -371,19 +354,6 @@ public class OptimAIAPI {
         }
     }
 
-    public String getNetworkTimezone(AccountContext accountContext) throws ExecutionException, InterruptedException {
-        String responseStr = optimAIBot.syncRequest(
-            accountContext.getProxy(),
-            "http://ip-api.com/json/",
-            HttpMethod.GET,
-            new HashMap<>(),
-            null,
-            null,
-            () -> accountContext.getSimpleInfo() + " get network detail"
-        ).get();
-        return JSONObject.parseObject(responseStr).getJSONObject("data").getString("timezone");
-    }
-
     @NotNull
     private static Map<String, String> buildSignInHeader(AccountContext accountContext, String userAgent) {
         Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
@@ -429,57 +399,6 @@ public class OptimAIAPI {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed)
             .replace("+", "-")
             .replace("/", "_");
-    }
-
-    public static String generateXClientAuthentication(String browser, String timezone)
-        throws NoSuchAlgorithmException, InvalidKeyException {
-        JSONObject body = new JSONObject();
-        body.put("client_app_id", "TLG_MINI_APP_V1");
-        body.put("timestamp", new Date());
-        JSONObject deviceInfo = generateDeviceInfo(browser, timezone);
-        body.put("device_info", deviceInfo);
-
-        String bodyStr = JSONObject.toJSONString(body);
-
-        // 创建HMAC-SHA256签名
-        Mac mac = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKeySpec = new SecretKeySpec(CLIENT_SECRET.getBytes(), "HmacSHA256");
-        mac.init(secretKeySpec);
-        byte[] signatureBytes = mac.doFinal(bodyStr.getBytes());
-        // 计算签名
-        String signature = bytesToHex(signatureBytes);
-        body.put("signature", signature);
-        // 对tokenPayload进行Base64编码
-        String base64Token = Base64.getEncoder().encodeToString(JSONObject.toJSONString(body).getBytes());
-        // 将Base64字符串进行替换
-        base64Token = base64Token.replace("+", "-")
-            .replace("/", "_")
-            .replaceAll("=+$", "");
-        return base64Token;
-    }
-
-    private static @NotNull JSONObject generateDeviceInfo(String browser, String timezone) {
-        JSONObject deviceInfo = new JSONObject();
-        deviceInfo.put("cpu_cores", 1);
-        deviceInfo.put("memory_gb", 0);
-        deviceInfo.put("screen_width_px", 375);
-        deviceInfo.put("screen_height_px", 600);
-        deviceInfo.put("color_depth", 30);
-        deviceInfo.put("scale_factor", 1);
-        deviceInfo.put("browser_name", browser);
-        deviceInfo.put("device_type", "extension");
-        deviceInfo.put("language", "zh-CN");
-        deviceInfo.put("timezone", timezone);
-        return deviceInfo;
-    }
-
-    // 将字节数组转换为Hex字符串
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            hexString.append(String.format("%02x", b));
-        }
-        return hexString.toString();
     }
 
     // Fibonacci transformation function
@@ -540,12 +459,13 @@ public class OptimAIAPI {
     private static final String template
         = "{\"duration\":600000,\"user_id\":\"%s\",\"device_id\":\"%s\",\"device_type\":\"telegram\",\"timestamp\":%d}";
 
-    public static void main(String[] args) {
-        String str = template.formatted("c17c9b6a-c261-4870-aac6-7a580e330d58",
-            "0195c17f-661d-70eb-8726-5c56303832b5", 1744264244445L);
-        System.out.println("json\n" + str);
-
-        String result = Ur(str);
-        System.out.println(result);
+    public static void main(String[] args) throws Exception {
+        CompletableFuture<String> future = CloudFlareResolver.cloudFlareResolve(
+                null,
+                LOGIN_PAGE_URL,
+                LOGIN_WEBSITE_KEY,
+                ""
+        );
+        System.out.println(future.get());
     }
 }

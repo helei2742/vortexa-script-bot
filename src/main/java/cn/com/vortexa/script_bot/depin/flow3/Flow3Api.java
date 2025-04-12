@@ -64,9 +64,7 @@ public class Flow3Api {
                     REGISTRY_WEB_SITE_URL,
                     REGISTRY_WEB_SITE_KEY,
                     twoCapKey
-            ).thenApply(twoCaptchaResult -> {
-                String userAgent = twoCaptchaResult.getString("userAgent");
-                String token = twoCaptchaResult.getString("token");
+            ).thenApply(token -> {
 
                 JSONObject body = new JSONObject();
                 body.put("referralCode", inviteCode);
@@ -75,7 +73,6 @@ public class Flow3Api {
                 body.put("captchaToken", token);
 
                 Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
-                headers.put("userAgent", userAgent);
 
                 try {
                     String responseStr = flow3Bot.syncRequest(
@@ -120,9 +117,7 @@ public class Flow3Api {
                     REGISTRY_WEB_SITE_URL,
                     REGISTRY_WEB_SITE_KEY,
                     twoCapKey
-            ).thenApply(twoCaptchaResult -> {
-                String userAgent = twoCaptchaResult.getString("userAgent");
-                String token = twoCaptchaResult.getString("token");
+            ).thenApply(token -> {
 
                 JSONObject body = new JSONObject();
                 body.put("password", password);
@@ -130,7 +125,6 @@ public class Flow3Api {
                 body.put("captchaToken", token);
 
                 Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
-                headers.put("userAgent", userAgent);
 
                 try {
                     String responseStr = flow3Bot.syncRequest(
