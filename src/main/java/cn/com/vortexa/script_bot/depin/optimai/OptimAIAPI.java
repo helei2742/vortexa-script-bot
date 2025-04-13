@@ -1,6 +1,6 @@
 package cn.com.vortexa.script_bot.depin.optimai;
 
-import cn.com.vortexa.captcha.CloudFlareResolver;
+import cn.com.vortexa.captcha.CaptchaResolver;
 import cn.com.vortexa.common.constants.HttpMethod;
 import cn.com.vortexa.common.dto.Result;
 import cn.com.vortexa.common.entity.AccountContext;
@@ -69,7 +69,7 @@ public class OptimAIAPI {
         if (!StrUtil.isBlank(accountContext.getParam(REFRESH_TOKEN_KEY))) return Result.ok();
 
         optimAIBot.logger.info(simpleInfo + " start cf resolve...");
-        CompletableFuture<Result> future = CloudFlareResolver.cloudFlareResolve(
+        CompletableFuture<Result> future = CaptchaResolver.cloudFlareResolve(
             proxy,
             LOGIN_PAGE_URL,
             LOGIN_WEBSITE_KEY,
@@ -460,7 +460,7 @@ public class OptimAIAPI {
         = "{\"duration\":600000,\"user_id\":\"%s\",\"device_id\":\"%s\",\"device_type\":\"telegram\",\"timestamp\":%d}";
 
     public static void main(String[] args) throws Exception {
-        CompletableFuture<String> future = CloudFlareResolver.cloudFlareResolve(
+        CompletableFuture<String> future = CaptchaResolver.cloudFlareResolve(
                 null,
                 LOGIN_PAGE_URL,
                 LOGIN_WEBSITE_KEY,

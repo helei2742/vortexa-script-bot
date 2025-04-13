@@ -1,7 +1,7 @@
 package cn.com.vortexa.script_bot.depin.flow3;
 
 
-import cn.com.vortexa.captcha.CloudFlareResolver;
+import cn.com.vortexa.captcha.CaptchaResolver;
 import cn.com.vortexa.common.constants.HttpMethod;
 import cn.com.vortexa.common.dto.Result;
 import cn.com.vortexa.common.entity.AccountContext;
@@ -59,7 +59,7 @@ public class Flow3Api {
         }
 
         try {
-            return CloudFlareResolver.cloudFlareResolve(
+            return CaptchaResolver.cloudFlareResolve(
                     accountContext.getProxy(),
                     REGISTRY_WEB_SITE_URL,
                     REGISTRY_WEB_SITE_KEY,
@@ -112,7 +112,7 @@ public class Flow3Api {
         }
 
         try {
-            return CloudFlareResolver.cloudFlareResolve(
+            return CaptchaResolver.cloudFlareResolve(
                     accountContext.getProxy(),
                     REGISTRY_WEB_SITE_URL,
                     REGISTRY_WEB_SITE_KEY,

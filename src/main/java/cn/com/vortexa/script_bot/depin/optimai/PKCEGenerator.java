@@ -1,15 +1,13 @@
 package cn.com.vortexa.script_bot.depin.optimai;
 
-import cn.com.vortexa.captcha.CloudFlareResolver;
+import cn.com.vortexa.captcha.CaptchaResolver;
 import cn.com.vortexa.common.constants.ProxyProtocol;
 import cn.com.vortexa.common.entity.ProxyInfo;
-import com.alibaba.fastjson.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 
 public class PKCEGenerator {
 
@@ -54,7 +52,7 @@ public class PKCEGenerator {
             proxy.setUsername("hldjmuos");
             proxy.setPassword("545n41b7z20x");
 
-            CloudFlareResolver.cloudFlareResolve(
+            CaptchaResolver.cloudFlareResolve(
                     proxy,
                     "https://node.optimai.network/login",
                     "0x4AAAAAAA-NTN9roDHAsPQe",

@@ -7,6 +7,7 @@ import cn.com.vortexa.browser_control.execute.ExecuteItem;
 import cn.com.vortexa.script_node.anno.BotApplication;
 import cn.com.vortexa.script_node.bot.selenium.FingerBrowserBot;
 import cn.com.vortexa.script_node.dto.selenium.ACBotTypedSeleniumExecuteInfo;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -22,6 +23,7 @@ import java.util.regex.Pattern;
  * @author helei
  * @since 2025-04-05
  */
+@Slf4j
 @BotApplication(
         name = "magic_newton_v2"
 )
@@ -68,7 +70,7 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
                 })
                 .executeItems(List.of(
                         ExecuteItem.builder().name("进入扫雷界面").executeLogic(this::enterScanBoom).build()
-//                        , ExecuteItem.builder().name("扫雷。。。").executeLogic(this::scanBoomProcess).build()
+                        , ExecuteItem.builder().name("扫雷。。。").executeLogic(this::scanBoomProcess).build()
                 ))
                 .build()
         );
@@ -93,7 +95,11 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
         seleniumInstance.randomWait();
         seleniumInstance.randomWait();
         seleniumInstance.xPathClick("//p[text()='Play now']", 10);
-        seleniumInstance.xPathClick("//div[text()='Continue']", 10);
+        try {
+            seleniumInstance.xPathClick("//button[./div[text()='Continue']]", 10);
+        } catch (Exception e) {
+            logger.warn(seleniumInstance.getInstanceId() + " may already in scan boom page");
+        }
     }
 
     private void scanBoomProcess(WebDriver webDriver, SeleniumInstance seleniumInstance) {
@@ -189,7 +195,7 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
             }
 
             try {
-                WebElement returnHome = webDriver.findElement(By.xpath("//div[text()='Play Again']"));
+                WebElement returnHome = webDriver.findElement(By.xpath("//button[./div[text()='Play Again']]"));
                 returnHome.click();
                 playCount++;
                 scanCount = 0;
@@ -199,7 +205,7 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
                 }
             } catch (Exception e) {
                 try {
-                    WebElement returnHome = webDriver.findElement(By.xpath("//div[text()='Return Home']"));
+                    WebElement returnHome = webDriver.findElement(By.xpath("//button[./div[text()='Return Home']]"));
                     returnHome.click();
                     // 没有再来一次，只有返回
                     return;

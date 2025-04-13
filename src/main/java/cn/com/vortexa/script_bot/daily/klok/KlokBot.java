@@ -1,5 +1,6 @@
 package cn.com.vortexa.script_bot.daily.klok;
 
+import cn.com.vortexa.captcha.CaptchaResolver;
 import cn.com.vortexa.common.constants.BotJobType;
 import cn.com.vortexa.common.constants.HttpMethod;
 import cn.com.vortexa.common.dto.Result;
@@ -11,6 +12,7 @@ import cn.com.vortexa.script_node.anno.BotApplication;
 import cn.com.vortexa.script_node.anno.BotMethod;
 import cn.com.vortexa.script_node.bot.AutoLaunchBot;
 import cn.com.vortexa.common.dto.config.AutoBotConfig;
+import cn.com.vortexa.script_node.constants.MapConfigKey;
 import cn.com.vortexa.script_node.service.BotApi;
 import cn.com.vortexa.web3.EthWalletUtil;
 import cn.com.vortexa.web3.dto.WalletInfo;
@@ -18,7 +20,6 @@ import cn.hutool.core.lang.Pair;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.web3j.crypto.Keys;
@@ -37,7 +38,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @BotApplication(
         name = "klok_bot",
-        accountParams = {KlokBot.PRIMARY_KEY}
+        accountParams = {KlokBot.PRIMARY_KEY},
+        configParams = {MapConfigKey.TWO_CAPTCHA_API_KEY}
 )
 public class KlokBot extends AutoLaunchBot<KlokBot> {
 
@@ -48,6 +50,10 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
     public static final String DAILY_TIMES = "daily_times";
     public static final String DAILY_LIMIT = "daily_limit";
     public static final String REFER_CODE = "refer_code";
+
+    public static final String LOGIN_SITE_KEY = "6LcZrRMrAAAAAKllb4TLb1CWH2LR7iNOKmT7rt3L";
+    public static final String LOGIN_SITE_URL = "https://klokapp.ai";
+    public static final String LOGIN_SITE_ACTION = "page_load";
 
     private KlokApi klokApi;
 
@@ -71,7 +77,7 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
     @BotMethod(jobType = BotJobType.LOGIN, concurrentCount = 5)
     public Result login(AccountContext accountContext) {
-        if (accountContext.getAccountBaseInfoId() != 3) return Result.fail("");
+        if (accountContext.getId() != 11) return Result.fail("test");
         return klokApi.registerOrLogin(accountContext, inviteCode);
     }
 
@@ -118,8 +124,11 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         private List<String> questions = null;
         private final Random random = new Random();
 
+        private final String twoCaptchaKey;
+
         public KlokApi(KlokBot klokBot) {
             this.klokBot = klokBot;
+            this.twoCaptchaKey = klokBot.getAutoBotConfig().getCustomConfig().get(MapConfigKey.TWO_CAPTCHA_API_KEY).toString();
             try {
                 questions = Files.readAllLines(Path.of(klokBot.getAutoBotConfig().getResourceDir() + File.separator + "question.txt"));
             } catch (IOException e) {
@@ -129,6 +138,10 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
 
         public Result registerOrLogin(AccountContext accountContext, String inviteCode) {
             try {
+                String existToken = accountContext.getParam(SESSION_TOKEN);
+                if (StrUtil.isNotBlank(existToken)) {
+                    return Result.ok(existToken);
+                }
                 Pair<String, String> signature = generateSignature(accountContext);
                 klokBot.logger.debug(accountContext.getSimpleInfo() + " signature success");
 
@@ -154,28 +167,41 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
                 String signature,
                 String inviteCode
         ) {
-            JSONObject body = new JSONObject();
-            body.put("signedMessage", signature);
-            body.put("message", message);
-            body.put("referral_code", inviteCode);
-
-            Map<String, String> headers = generateACHeader(accountContext);
-
-            return klokBot.syncRequest(
+            klokBot.logger.debug(accountContext.getSimpleInfo() + " start recaptcha verify...");
+            return CaptchaResolver.reCaptchaV3EnterpriseResolve(
                     accountContext.getProxy(),
-                    VERIFY_API,
-                    HttpMethod.POST,
-                    headers,
-                    null,
-                    body,
-                    () -> accountContext.getSimpleInfo() + " send verify request"
-            ).thenApply(response -> {
-                JSONObject result = JSONObject.parseObject(response);
+                    LOGIN_SITE_URL,
+                    LOGIN_SITE_KEY,
+                    LOGIN_SITE_ACTION,
+                    twoCaptchaKey
+            ).thenApply(token -> {
+                klokBot.logger.debug(accountContext.getSimpleInfo() + " start recaptcha verify success...");
+                JSONObject body = new JSONObject();
+                body.put("signedMessage", signature);
+                body.put("message", message);
+                body.put("referral_code", inviteCode);
+                body.put("recaptcha_token", token);
+                Map<String, String> headers = generateACHeader(accountContext);
 
-                if ("Verification successful".equals(result.getString("message"))) {
-                    return result.getString("session_token");
-                } else {
-                    throw new RuntimeException("Verification failed, " + response);
+                try {
+                    String response = klokBot.syncRequest(
+                            accountContext.getProxy(),
+                            VERIFY_API,
+                            HttpMethod.POST,
+                            headers,
+                            null,
+                            body,
+                            () -> accountContext.getSimpleInfo() + " send verify request"
+                    ).get();
+
+                    JSONObject result = JSONObject.parseObject(response);
+                    if ("Verification successful".equals(result.getString("message"))) {
+                        return result.getString("session_token");
+                    } else {
+                        throw new RuntimeException("Verification failed, " + response);
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Verification failed, " + e.getMessage());
                 }
             });
         }
@@ -183,71 +209,68 @@ public class KlokBot extends AutoLaunchBot<KlokBot> {
         public void dailyTask(AccountContext accountContext, String inviteCode) throws ExecutionException, InterruptedException {
             String simpleInfo = accountContext.getSimpleInfo();
 
-            Result result = registerOrLogin(accountContext, inviteCode);
+//            Result result = registerOrLogin(accountContext, inviteCode);
 
-            klokBot.logger.debug(simpleInfo + " start daily task" );
+            klokBot.logger.debug(simpleInfo + " start daily task");
 
-            if (result.getSuccess()) {
-                String token = accountContext.getParam(SESSION_TOKEN);
+            String token = accountContext.getParam(SESSION_TOKEN);
 
-                Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
-                headers.put("x-session-token", token);
+            if (StrUtil.isBlank(token)) {
+                return;
+            }
 
-                while (true) {
-                    try {
+            Map<String, String> headers = accountContext.getBrowserEnv().generateHeaders();
+            headers.put("x-session-token", token);
 
-                    } catch (Exception e) {
-
+            while (true) {
+                int count = 0;
+                JSONObject limitCheck = null;
+                for (int i = 0; i < 15; i++) {
+                    limitCheck = accountRequestLimitCheck(accountContext, headers);
+                    if (limitCheck != null) {
+                        count = limitCheck.getInteger("remaining");
+                        break;
                     }
-                    int count = 0;
-                    JSONObject limitCheck = null;
-                    for (int i = 0; i < 10; i++) {
-                        limitCheck = accountRequestLimitCheck(accountContext, headers);
-                        if (limitCheck != null) {
-                            count = limitCheck.getInteger("remaining");
-                            break;
-                        }
-                        klokBot.logger.debug(simpleInfo + " rate limit[%d/%d], sleep 30s...".formatted(i + 1, count));
-                        TimeUnit.SECONDS.sleep(60);
-                    }
-
-                    if (limitCheck == null || count <= 0) {
-                        klokBot.logger.warn(simpleInfo + " Daily limited " + count);
-                        return;
-                    }
-
-
-                    JSONObject body = new JSONObject();
-                    body.put("id", UUID.randomUUID().toString());
-                    JSONArray message = buildChatMessage();
-                    body.put("messages", message);
-                    body.put("model", "llama-3.3-70b-instruct");
-                    body.put("created_at", currentISOTime());
-                    body.put("language", "english");
-
-                    try {
-                        int finalCount = count;
-                        String chatResult = klokBot.syncRequest(
-                                accountContext.getProxy(),
-                                BASE_API + "/v1/chat",
-                                HttpMethod.POST,
-                                headers,
-                                null,
-                                body,
-                                () -> simpleInfo + " send chat request - " + finalCount + " " + message
-                        ).get();
-                        klokBot.logger.info("%s daily chat %d finish..question:[%s].%s".formatted(
-                                simpleInfo, count, body.get("messages"), chatResult.substring(0, Math.min(20, chatResult.length())))
-                        );
-                    } catch (Exception e) {
-                        klokBot.logger.error("daily chat %d error, %s".formatted(count,
-                                e.getCause() == null ? e.getCause().getMessage() : e.getMessage()));
-                    }
-
-                    int i = random.nextInt(10);
-                    klokBot.logger.debug(simpleInfo + " sleep..." + i);
-                    TimeUnit.SECONDS.sleep(i);
+                    klokBot.logger.debug(simpleInfo + " rate limit[%d/%d], sleep 30s...".formatted(i + 1, count));
+                    TimeUnit.SECONDS.sleep(60);
                 }
+
+                if (limitCheck == null || count <= 0) {
+                    klokBot.logger.warn(simpleInfo + " Daily limited " + count);
+                    return;
+                }
+
+
+                JSONObject body = new JSONObject();
+                body.put("id", UUID.randomUUID().toString());
+                JSONArray message = buildChatMessage();
+                body.put("messages", message);
+                body.put("model", "llama-3.3-70b-instruct");
+                body.put("created_at", currentISOTime());
+                body.put("language", "english");
+
+                try {
+                    int finalCount = count;
+                    String chatResult = klokBot.syncRequest(
+                            accountContext.getProxy(),
+                            BASE_API + "/v1/chat",
+                            HttpMethod.POST,
+                            headers,
+                            null,
+                            body,
+                            () -> simpleInfo + " send chat request - " + finalCount + " " + message
+                    ).get();
+                    klokBot.logger.info("%s daily chat %d finish..question:[%s].%s".formatted(
+                            simpleInfo, count, body.get("messages"), chatResult.substring(0, Math.min(20, chatResult.length())))
+                    );
+                } catch (Exception e) {
+                    klokBot.logger.error("daily chat %d error, %s".formatted(count,
+                            e.getCause() == null ? e.getCause().getMessage() : e.getMessage()));
+                }
+
+                int i = random.nextInt(10);
+                klokBot.logger.debug(simpleInfo + " sleep..." + i);
+                TimeUnit.SECONDS.sleep(i);
             }
         }
 

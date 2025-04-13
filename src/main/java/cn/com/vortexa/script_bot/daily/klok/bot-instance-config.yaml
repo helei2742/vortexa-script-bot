@@ -5,3 +5,5 @@ vortexa:
     classFileName: 'KlokBot.java'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/klok_google.xlsx"
+    customConfig:
+      two_captcha_api_key:

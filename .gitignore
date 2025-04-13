@@ -11,6 +11,8 @@ target/
 *.iws
 *.iml
 *.ipr
+*.class
+bot-instance-config.yaml
 
 **/.xlsx
 ### Eclipse ###
@@ -47,3 +49,7 @@ selenium_data/
 A_back/
 
 **/.db
+
+/logs/
+/ws-control-server/logs/
+
