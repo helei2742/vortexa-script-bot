@@ -10,8 +10,8 @@ spring:
       table-prefix: QRTZ_
       driver-class: com.mysql.cj.jdbc.Driver
       url: jdbc:mysql://localhost:3306/job_store
-      user: root
-      password: 962464HeLei
+      user: helei
+      password: 123456
       scheduler:
         instance-name: QuartzScheduler
 
@@ -22,7 +22,9 @@ vortexa:
     auto-launch-bot-keys:
 #      - optim_ai_test
 #      - klok_test
-      - flow3_bot_test
+#      - flow3_bot_test
+      - magic_newton_v2
+      - beamable_test
   #    bot-instance-locations: "reactive:"
   script-agent:
     registryCenterUrl: ws://localhost:18848

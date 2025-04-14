@@ -93,7 +93,6 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
 
     private void enterScanBoom(WebDriver webDriver, SeleniumInstance seleniumInstance) {
         seleniumInstance.randomWait();
-        seleniumInstance.randomWait();
         seleniumInstance.xPathClick("//p[text()='Play now']", 10);
         try {
             seleniumInstance.xPathClick("//button[./div[text()='Continue']]", 10);
