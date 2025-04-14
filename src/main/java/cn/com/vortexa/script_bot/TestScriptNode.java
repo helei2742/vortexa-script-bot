@@ -1,6 +1,7 @@
 package cn.com.vortexa.script_bot;
 
 
+import cn.com.vortexa.common.util.BannerUtil;
 import cn.com.vortexa.script_node.ScriptNodeApplication;
 import org.springframework.boot.SpringApplication;
 
@@ -11,6 +12,7 @@ import org.springframework.boot.SpringApplication;
 public class TestScriptNode {
 
     public static void main(String[] args) {
+        BannerUtil.closeOtherBanner();
         SpringApplication.run(ScriptNodeApplication.class, args);
     }
 }

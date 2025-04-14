@@ -17,7 +17,7 @@ spring:
 
 vortexa:
   script-node:
-    bot-group: helei-macbook
+    script-node-name: helei-macbook
     bot-instance-locations: /Users/helei/develop/ideaworkspace/BotFramework/vortexa-script-bot/src/main/java/cn/com/vortexa/script_bot
     auto-launch-bot-keys:
 #      - optim_ai_test
