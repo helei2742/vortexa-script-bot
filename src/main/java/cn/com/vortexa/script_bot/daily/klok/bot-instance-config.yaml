@@ -3,6 +3,7 @@ vortexa:
     botKey: 'klok_test'
     className: 'cn.com.vortexa.script_bot.daily.klok.KlokBot'
     classFileName: 'KlokBot.java'
+    classFilePath: '/Users/helei/develop/ideaworkspace/BotFramework/vortexa-script-bot/src/main/java/cn/com/vortexa/script_bot/daily/klok/KlokBot$KlokApi.class'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/klok_google.xlsx"
     customConfig:

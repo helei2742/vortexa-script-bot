@@ -57,6 +57,7 @@ public class HaHaWalletBot extends AutoLaunchBot<HaHaWalletBot> {
 
         HahaWalletSelenium hahaWalletSelenium = new HahaWalletSelenium(this, accountContext);
         hahaWalletSelenium.syncStart();
+        hahaWalletSelenium.close();
 
         logger.info("[%s] daily task finish".formatted(accountContext.getSimpleInfo()));
     }

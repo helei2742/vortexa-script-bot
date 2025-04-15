@@ -10,8 +10,6 @@ import cn.com.vortexa.common.entity.BrowserEnv;
 import cn.com.vortexa.common.entity.ProxyInfo;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import org.jetbrains.annotations.NotNull;
 import org.openqa.selenium.*;
 import org.slf4j.Logger;
@@ -36,25 +34,6 @@ public class HahaWalletSelenium extends OptSeleniumInstance {
     private final AccountContext accountContext;
 
     private int todayCount;
-
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-        AccountContext testAC = new AccountContext();
-
-        testAC.setProxy(ProxyInfo.builder().host("192.46.201.191").port(6705).username("").password("").build());
-        testAC.setParam(WALLET_KEY, "23");
-        testAC.setParam(USERNAME_KEY, "@qq.com");
-        testAC.setParam(PASSWORD_KEY, "23");
-
-        BrowserEnv browserEnv = new BrowserEnv();
-        browserEnv.setUserAgent("Mozilla/55.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.116 Safari/537.36");
-
-        testAC.setBrowserEnv(browserEnv);
-        HahaWalletSelenium hahaWalletSelenium = new HahaWalletSelenium(new HaHaWalletBot(), testAC);
-
-        hahaWalletSelenium.syncStart();
-    }
-
 
     public HahaWalletSelenium(HaHaWalletBot bot, AccountContext accountContext) throws IOException {
         super(

@@ -27,7 +27,7 @@ import java.util.List;
         accountParams = BeamableBot.FINGER_BROWSER_SEQ
 )
 public class BeamableBot extends AutoLaunchBot<BeamableBot> {
-    public static final int WINDOW_SIZE = 4;
+    public static final int WINDOW_SIZE = 2;
     public static final String BIT_BROWSER_API_URL = "bit_browser_api_url";
     public static final String CHROME_DRIVER_URL = "chrome_driver_url";
     public static final String FINGER_BROWSER_SEQ = "finger_browser_seq";
@@ -50,15 +50,19 @@ public class BeamableBot extends AutoLaunchBot<BeamableBot> {
         return this;
     }
 
-    @BotMethod(jobType = BotJobType.TIMED_TASK, intervalInSecond = 60 * 60 * 12, concurrentCount = WINDOW_SIZE)
+    @BotMethod(jobType = BotJobType.ONCE_TASK, intervalInSecond = 60 * 60 * 12, concurrentCount = 8)
     public void dailyReword(AccountContext accountContext) throws IOException {
         Integer fingerSeq = Integer.parseInt(accountContext.getParam(FINGER_BROWSER_SEQ));
-        runningBrowserWindow.add(fingerSeq);
         String simpleInfo = accountContext.getSimpleInfo();
 
         try {
-            if (runningBrowserWindow.size() == WINDOW_SIZE) {
-                browserDriver.flexAbleWindowBounds(new ArrayList<>(runningBrowserWindow));
+            synchronized (runningBrowserWindow) {
+                runningBrowserWindow.add(fingerSeq);
+
+                if (runningBrowserWindow.size() == 2) {
+                    browserDriver.flexAbleWindowBounds(new ArrayList<>(runningBrowserWindow));
+                    runningBrowserWindow.clear();
+                }
             }
 
             String debuggerAddress = browserDriver.startWebDriverBySeq(fingerSeq);
