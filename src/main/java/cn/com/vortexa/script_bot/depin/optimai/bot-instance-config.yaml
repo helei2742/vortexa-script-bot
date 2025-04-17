@@ -2,7 +2,8 @@ vortexa:
   bot-instance:
     botKey: 'optim_ai_test'
     className: 'cn.com.vortexa.script_bot.depin.optimai.OptimAIBot'
-    classFileName: 'OptimAIBot.java'
+    extraClassNameList:
+      - 'cn.com.vortexa.script_bot.depin.optimai.OptimAIAPI'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/optimai_google.xlsx"
     customConfig:

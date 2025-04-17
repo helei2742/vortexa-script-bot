@@ -2,10 +2,8 @@ vortexa:
   bot-instance:
     botKey: 'magic_newton_v2'
     className: 'cn.com.vortexa.script_bot.daily.magic_newton_v2.MagicNewtonBotV2'
-    classFileName: 'MagicNewtonBotV2.java'
-#    extraClass:
-#      - className: "cn.com.vortexa.script_bot.daily.magic_newton.MagicNewtonSelenium"
-#        classFileName: "MagicNewtonSelenium.java"
+    extraClassNameList:
+      - 'cn.com.vortexa.script_bot.daily.magic_newton_v2.MinesweeperSolver'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/magic_newton.xlsx"
     customConfig:

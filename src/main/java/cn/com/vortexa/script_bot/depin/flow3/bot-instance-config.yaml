@@ -2,7 +2,6 @@ vortexa:
   bot-instance:
     botKey: 'flow3_bot_test'
     className: 'cn.com.vortexa.script_bot.depin.flow3.Flow3Bot'
-    classFileName: 'Flow3Bot.java'
     accountConfig:
       configFilePath: "app_resource_config:flow3_google.xlsx"
     customConfig:

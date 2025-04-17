@@ -7,6 +7,7 @@ import cn.com.vortexa.browser_control.execute.ExecuteItem;
 import cn.com.vortexa.script_node.anno.BotApplication;
 import cn.com.vortexa.script_node.bot.selenium.FingerBrowserBot;
 import cn.com.vortexa.script_node.dto.selenium.ACBotTypedSeleniumExecuteInfo;
+import cn.hutool.core.lang.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -127,13 +128,15 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
         int playLimit = 3;
         int playCount = 0;
         int scanCount = 0;
-        Set<Integer> excludeIndex = new HashSet<>() {};
+        Set<Integer> excludeIndex = new HashSet<>();
+
         while (true) {
             Map<Integer, WebElement> index2ElementMap = new HashMap<>();
+            seleniumInstance.xPathFindElement("//div[@class=\"fPSBzf bYPztT dKLBtz cMGtQw gamecol\"]", 30);
             List<WebElement> rowsElement = seleniumInstance.xPathFindElements("//div[@class=\"fPSBzf bYPztT dKLBtz cMGtQw gamecol\"]");
             List<List<Integer>> map = new ArrayList<>(rowsElement.size());
 
-            Set<Integer> knownIndex = new HashSet<>() {};
+            Set<Integer> knownIndex = new HashSet<>();
 
             for (int x = 0; x < rowsElement.size(); x++) {
                 List<WebElement> col = rowsElement.get(x).findElements(
@@ -167,29 +170,30 @@ public class MagicNewtonBotV2 extends FingerBrowserBot {
                 map.add(line);
             }
 
-            Map<String, Set<MinesweeperSolver.Pos>> result = MinesweeperSolver.solve(map);
-            Set<MinesweeperSolver.Pos> toClick = result.get("click");
-            Set<MinesweeperSolver.Pos> boom = result.get("boom");
+            Map<String, Set<Pair<Integer, Integer>>> result = MinesweeperSolver.solve(map);
+            Set<Pair<Integer, Integer>> toClick = result.get("click");
+            Set<Pair<Integer, Integer>> boom = result.get("boom");
 
             logger.info(instanceId + " [%s] scan count[%s]. map resolve finish :\n click[%s] boom[%s]\n%s".formatted(
                     playCount, scanCount, toClick.size(), boom.size(), printMap(map)
             ));
 
             // 右击炸弹
-            for (MinesweeperSolver.Pos pos : boom) {
-                int index = pos.row * map.getFirst().size() + pos.col;
+            for (Pair<Integer, Integer> pos : boom) {
+                int index = pos.getKey() * map.getFirst().size() + pos.getValue();
                 excludeIndex.add(index);
                 actions.contextClick(index2ElementMap.get(index)).perform();
             }
 
             // 点击可点击区域
-            for (MinesweeperSolver.Pos pos : toClick) {
-                int index = pos.row * map.getFirst().size() + pos.col;
+            for (Pair<Integer, Integer> pos : toClick) {
+                int index = pos.getKey() * map.getFirst().size() + pos.getValue();
                 index2ElementMap.get(index).click();
             }
 
             if (toClick.isEmpty() && boom.isEmpty()) {
-                List<Integer> list = knownIndex.stream().filter(i->!excludeIndex.contains(i)).toList();
+                Set<Integer> finalExcludeIndex = excludeIndex;
+                List<Integer> list = knownIndex.stream().filter(i->!finalExcludeIndex.contains(i)).toList();
                 index2ElementMap.get(list.get(getRandom().nextInt(0, list.size()))).click();
             }
 

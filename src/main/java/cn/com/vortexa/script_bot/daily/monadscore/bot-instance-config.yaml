@@ -2,7 +2,6 @@ vortexa:
   bot-instance:
     botKey: 'monadscore_test'
     className: 'cn.com.vortexa.script_bot.daily.monadscore.MonadScoreBot'
-    classFileName: 'MonadScoreBot.java'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/monad_score_google.xlsx"
     customConfig:

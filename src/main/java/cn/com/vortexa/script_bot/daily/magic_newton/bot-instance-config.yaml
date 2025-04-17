@@ -2,10 +2,6 @@ vortexa:
   bot-instance:
     botKey: 'magic_newton_test'
     className: 'cn.com.vortexa.script_bot.daily.magic_newton.MagicNewtonBot'
-    classFileName: 'MagicNewtonBot.java'
-#    extraClass:
-#      - className: "cn.com.vortexa.script_bot.daily.magic_newton.MagicNewtonSelenium"
-#        classFileName: "MagicNewtonSelenium.java"
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/magic_newton.xlsx"
     customConfig:

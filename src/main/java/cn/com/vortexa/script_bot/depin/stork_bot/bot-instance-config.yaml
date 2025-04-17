@@ -2,7 +2,6 @@ vortexa:
   bot-instance:
     botKey: 'stork_test'
     className: 'cn.com.vortexa.script_bot.depin.stork_bot.StorkBot'
-    classFileName: 'StorkBot.java'
     accountConfig:
       configFilePath: "/Users/helei/develop/ideaworkspace/BotFramework/botData/config/app/stork_google.xlsx"
     customConfig:

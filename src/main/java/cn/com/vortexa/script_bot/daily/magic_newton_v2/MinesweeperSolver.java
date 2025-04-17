@@ -1,42 +1,17 @@
 package cn.com.vortexa.script_bot.daily.magic_newton_v2;
 
+import cn.hutool.core.lang.Pair;
+
 import java.util.*;
 
 public class MinesweeperSolver {
 
-    public static class Pos {
-        int row, col;
-
-        Pos(int r, int c) {
-            this.row = r;
-            this.col = c;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof Pos)) return false;
-            Pos p = (Pos) o;
-            return row == p.row && col == p.col;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(row, col);
-        }
-
-        @Override
-        public String toString() {
-            return "(" + row + "," + col + ")";
-        }
-    }
-
-    public static Map<String, Set<Pos>> solve(List<List<Integer>> board) {
+    public static Map<String, Set<Pair<Integer, Integer>>> solve(List<List<Integer>> board) {
         int rows = board.size();
         int cols = board.getFirst().size();
 
-        Set<Pos> toClick = new HashSet<>();
-        Set<Pos> toMarkBomb = new HashSet<>();
+        Set<Pair<Integer, Integer>> toClick = new HashSet<>();
+        Set<Pair<Integer, Integer>> toMarkBomb = new HashSet<>();
 
         int[][] directions = {
                 {-1, -1}, {-1, 0}, {-1, 1},
@@ -49,7 +24,7 @@ public class MinesweeperSolver {
                 Integer val = board.get(r).get(c);
                 if (val == null || val == -1 || val == 0) continue;
 
-                List<Pos> unknowns = new ArrayList<>();
+                List<Pair<Integer, Integer>> unknowns = new ArrayList<>();
                 int bombCount = 0;
 
                 for (int[] d : directions) {
@@ -57,7 +32,7 @@ public class MinesweeperSolver {
                     if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
                         Integer neighbor =  board.get(nr).get(nc);
                         if (neighbor == null) {
-                            unknowns.add(new Pos(nr, nc));
+                            unknowns.add(new Pair<Integer, Integer>(nr, nc));
                         } else if (neighbor == -1) {
                             bombCount++;
                         }
@@ -76,7 +51,7 @@ public class MinesweeperSolver {
         // 防止交叉重复：点击集不包括已确认是炸弹的格子
         toClick.removeAll(toMarkBomb);
 
-        Map<String, Set<Pos>> result = new HashMap<>();
+        Map<String, Set<Pair<Integer, Integer>>> result = new HashMap<>();
         result.put("click", toClick);
         result.put("boom", toMarkBomb);
         return result;
