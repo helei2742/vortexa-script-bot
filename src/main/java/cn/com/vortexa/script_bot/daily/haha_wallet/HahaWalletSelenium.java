@@ -5,7 +5,10 @@ import cn.com.vortexa.browser_control.dto.SeleniumParams;
 import cn.com.vortexa.browser_control.dto.SeleniumProxy;
 import cn.com.vortexa.browser_control.execute.ExecuteGroup;
 import cn.com.vortexa.browser_control.execute.ExecuteItem;
+import cn.com.vortexa.browser_control.util.SeleniumProxyAuth;
 import cn.com.vortexa.common.entity.AccountContext;
+import cn.com.vortexa.common.entity.BrowserEnv;
+import cn.com.vortexa.common.entity.ProxyInfo;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.util.StrUtil;
 import org.jetbrains.annotations.NotNull;
@@ -37,6 +40,7 @@ public class HahaWalletSelenium extends OptSeleniumInstance {
         super(
                 accountContext.getParam(HaHaWalletBot.USERNAME_KEY),
                 new SeleniumProxy(
+                        accountContext.getProxy().getProxyProtocol(),
                         accountContext.getProxy().getHost(),
                         accountContext.getProxy().getPort(),
                         accountContext.getProxy().getUsername(),
@@ -118,16 +122,16 @@ public class HahaWalletSelenium extends OptSeleniumInstance {
                         .build()
                 )
                 .addExecuteFun(ExecuteGroup.builder()
-                        .name("每日任务")
-                        .enterCondition((webDriver, params) -> {
-                            return true;
-                        })
-                        .executeItems(List.of(
-                                ExecuteItem.builder().name("进入monad Swap页面").executeLogic(this::enterMonadSwapPage).build(),
-                                ExecuteItem.builder().name("交换Monad").executeLogic(this::monadSwap).build()
+                                .name("每日任务")
+                                .enterCondition((webDriver, params) -> {
+                                    return true;
+                                })
+                                .executeItems(List.of(
+                                        ExecuteItem.builder().name("进入monad Swap页面").executeLogic(this::enterMonadSwapPage).build(),
+                                        ExecuteItem.builder().name("交换Monad").executeLogic(this::monadSwap).build()
 //                                ExecuteItem.builder().name("trans sepolia Eth").executeLogic(this::sepoliaSwapPage).build()
-                        ))
-                        .build()
+                                ))
+                                .build()
                 );
 
     }
